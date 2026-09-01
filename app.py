@@ -55,6 +55,8 @@ st.sidebar.header("🗺️ Tactical Pitch Views")
 tactical_view = st.sidebar.radio(
     "Select Tactical Visual Mode:",
     [
+        "⚽ Team Shots Map (تسديدات الفريق الهجومية - 42)",
+        "🛡️ Opponent Shots Conceded (التسديدات المستقبلة من المنافسين)",
         "🎯 All Passes Map (ALL 1545 Passes)",
         "📐 Short Passes Map (ALL 1322 Short Passes)",
         "📏 Long Passes Map (ALL 189 Long Passes)",
@@ -104,22 +106,152 @@ ax.text(
 )
 
 # ---------------------------------------------------------
-# 4. Tactical Views Logic (رسم 100% من البيانات بدون استثناء)
+# 4. Tactical Views Logic
 # ---------------------------------------------------------
 
-# MODE 1: ALL PASSES MAP (رسم الـ 1,545 تمريرة بالكامل)
-if tactical_view == "🎯 All Passes Map (ALL 1545 Passes)":
+# MODE 1: TEAM SHOTS MAP (42 تسديدة للفريق)
+if tactical_view == "⚽ Team Shots Map (تسديدات الفريق الهجومية - 42)":
+    shots_tot = int(team_data.get("Attempts Total", 42))
+    shots_succ = int(team_data.get("Attempts Success", 22))
+    goals = int(team_data.get("GoalsScored Total", 8))
+    bars = int(team_data.get("Attempts Bars", 3))
+
+    on_target = max(0, shots_succ - goals)
+    off_target = max(0, shots_tot - shots_succ)
+
+    # 1. الأهداف المسجلة (8 أهداف - نجوم ذهبية كبيرة داخل الصندوق)
+    if goals > 0:
+        gx = np.random.uniform(94, 114, goals)
+        gy = np.random.uniform(25, 55, goals)
+        pitch.scatter(
+            gx,
+            gy,
+            s=320,
+            color="#ffd700",
+            marker="*",
+            edgecolors="white",
+            linewidth=1.2,
+            ax=ax,
+            label=f"Goals Scored ({goals})",
+            zorder=6,
+        )
+
+    # 2. تسديدات على المرمى (14 تسديدة - دوائر خضراء)
+    if on_target > 0:
+        tx = np.random.uniform(85, 112, on_target)
+        ty = np.random.uniform(20, 60, on_target)
+        pitch.scatter(
+            tx,
+            ty,
+            s=140,
+            color="#00ff66",
+            marker="o",
+            edgecolors="black",
+            linewidth=1,
+            ax=ax,
+            label=f"Shots On Target ({on_target})",
+            zorder=5,
+        )
+
+    # 3. تسديدات القائم والعارضة (3 تسديدات - مربع برتقالي)
+    if bars > 0:
+        bx = np.random.uniform(105, 115, bars)
+        by = np.random.uniform(26, 54, bars)
+        pitch.scatter(
+            bx,
+            by,
+            s=160,
+            color="#ffab00",
+            marker="s",
+            edgecolors="white",
+            linewidth=1,
+            ax=ax,
+            label=f"Hit Post/Bar ({bars})",
+            zorder=5,
+        )
+
+    # 4. تسديدات خارج المرمى (20 تسديدة - علامات X حمراء)
+    if off_target > 0:
+        fx = np.random.uniform(70, 110, off_target)
+        fy = np.random.uniform(10, 70, off_target)
+        pitch.scatter(
+            fx,
+            fy,
+            s=120,
+            color="#ff1744",
+            marker="x",
+            linewidth=2,
+            ax=ax,
+            label=f"Off Target ({off_target})",
+            zorder=4,
+        )
+
+# MODE 2: OPPONENT SHOTS CONCEDED (التسديدات المستقبلة على مرمى الفريق)
+elif (
+    tactical_view
+    == "🛡️ Opponent Shots Conceded (التسديدات المستقبلة من المنافسين)"
+):
+    goals_conceded = int(team_data.get("GoalsConceded Total", 1))
+    blocks = int(team_data.get("Defensive Blocks", 10))
+    opp_shots_tot = 17  # إجمالي التسديدات على المرمى الدفاعي
+    opp_off_target = max(0, opp_shots_tot - (goals_conceded + blocks))
+
+    # 1. الأهداف المستقبلة على مرمانا (سهم/نجمة حمراء على مرمى نصف ملعبنا X=5..15)
+    if goals_conceded > 0:
+        pitch.scatter(
+            np.random.uniform(5, 12, goals_conceded),
+            np.random.uniform(32, 48, goals_conceded),
+            s=350,
+            color="#ff1744",
+            marker="*",
+            edgecolors="white",
+            linewidth=1.5,
+            ax=ax,
+            label=f"Goals Conceded ({goals_conceded})",
+            zorder=6,
+        )
+
+    # 2. تسديدات الخصم المحجوبة من المدافعين (10 Blocks - معينات زرقاء)
+    if blocks > 0:
+        pitch.scatter(
+            np.random.uniform(12, 32, blocks),
+            np.random.uniform(20, 60, blocks),
+            s=150,
+            color="#00e5ff",
+            marker="D",
+            edgecolors="white",
+            linewidth=1,
+            ax=ax,
+            label=f"Defensive Blocks ({blocks})",
+            zorder=5,
+        )
+
+    # 3. تسديدات الخصم الطائشة/الخارجة (7 تسديدات - دوائر برتقالية)
+    if opp_off_target > 0:
+        pitch.scatter(
+            np.random.uniform(15, 45, opp_off_target),
+            np.random.uniform(8, 72, opp_off_target),
+            s=110,
+            color="#ffab00",
+            marker="o",
+            edgecolors="black",
+            linewidth=1,
+            ax=ax,
+            label=f"Opponent Off Target ({opp_off_target})",
+            zorder=4,
+        )
+
+# MODE 3: ALL PASSES MAP
+elif tactical_view == "🎯 All Passes Map (ALL 1545 Passes)":
     pass_tot = int(team_data.get("Pass Total", 1545))
     pass_succ = int(team_data.get("Pass Success", 1251))
     pass_fail = max(0, pass_tot - pass_succ)
 
-    # 1. رسم التمريرات الناجحة الـ 1251 بالكامل (أخضر فسفوري شفاف لعدم حجب الرؤية)
     if pass_succ > 0:
         px1 = np.random.uniform(5, 105, pass_succ)
         py1 = np.random.uniform(2, 78, pass_succ)
         px2 = np.clip(px1 + np.random.uniform(-15, 35, pass_succ), 5, 115)
         py2 = np.clip(py1 + np.random.uniform(-25, 25, pass_succ), 2, 78)
-
         pitch.arrows(
             px1,
             py1,
@@ -135,13 +267,11 @@ if tactical_view == "🎯 All Passes Map (ALL 1545 Passes)":
             zorder=3,
         )
 
-    # 2. رسم التمريرات الخاطئة الـ 294 بالكامل (أحمر شفاف)
     if pass_fail > 0:
         fx1 = np.random.uniform(10, 105, pass_fail)
         fy1 = np.random.uniform(5, 75, pass_fail)
         fx2 = np.clip(fx1 + np.random.uniform(-15, 35, pass_fail), 5, 115)
         fy2 = np.clip(fy1 + np.random.uniform(-25, 25, pass_fail), 5, 75)
-
         pitch.arrows(
             fx1,
             fy1,
@@ -157,7 +287,7 @@ if tactical_view == "🎯 All Passes Map (ALL 1545 Passes)":
             zorder=4,
         )
 
-# MODE 2: SHORT PASSES (رسم الـ 1,322 تمريرة قصيرة بالكامل)
+# MODE 4: SHORT PASSES MAP
 elif tactical_view == "📐 Short Passes Map (ALL 1322 Short Passes)":
     sp_tot = int(team_data.get("ShortPass Total", 1322))
     sp_succ = int(team_data.get("ShortPass Success", 1165))
@@ -168,7 +298,6 @@ elif tactical_view == "📐 Short Passes Map (ALL 1322 Short Passes)":
         py1 = np.random.uniform(2, 78, sp_succ)
         px2 = np.clip(px1 + np.random.uniform(-10, 20, sp_succ), 5, 115)
         py2 = np.clip(py1 + np.random.uniform(-15, 15, sp_succ), 2, 78)
-
         pitch.arrows(
             px1,
             py1,
@@ -189,7 +318,6 @@ elif tactical_view == "📐 Short Passes Map (ALL 1322 Short Passes)":
         fy1 = np.random.uniform(5, 75, sp_fail)
         fx2 = np.clip(fx1 + np.random.uniform(-10, 20, sp_fail), 5, 115)
         fy2 = np.clip(fy1 + np.random.uniform(-15, 15, sp_fail), 5, 75)
-
         pitch.arrows(
             fx1,
             fy1,
@@ -205,7 +333,7 @@ elif tactical_view == "📐 Short Passes Map (ALL 1322 Short Passes)":
             zorder=4,
         )
 
-# MODE 3: LONG PASSES (رسم الـ 189 تمريرة طويلة بالكامل)
+# MODE 5: LONG PASSES MAP
 elif tactical_view == "📏 Long Passes Map (ALL 189 Long Passes)":
     lp_tot = int(team_data.get("LongPass Total", 189))
     lp_succ = int(team_data.get("LongPass Success", 76))
@@ -224,7 +352,6 @@ elif tactical_view == "📏 Long Passes Map (ALL 189 Long Passes)":
             2,
             78,
         )
-
         pitch.arrows(
             px1,
             py1,
@@ -253,7 +380,6 @@ elif tactical_view == "📏 Long Passes Map (ALL 189 Long Passes)":
             2,
             78,
         )
-
         pitch.arrows(
             fx1,
             fy1,
@@ -269,7 +395,7 @@ elif tactical_view == "📏 Long Passes Map (ALL 189 Long Passes)":
             zorder=3,
         )
 
-# MODE 4: SET-PIECE & CORNER CROSSES
+# MODE 6: SET-PIECE & CORNER CROSSES
 elif (
     tactical_view
     == "🚩 Set-Piece & Corner Crosses (الركنيات والضربات الثابتة)"
@@ -283,7 +409,6 @@ elif (
         sp_sy1 = np.random.choice([1, 2, 78, 79], sp_succ)
         sp_sx2 = np.random.uniform(102, 114, sp_succ)
         sp_sy2 = np.random.uniform(24, 56, sp_succ)
-
         pitch.arrows(
             sp_sx1,
             sp_sy1,
@@ -303,7 +428,6 @@ elif (
         sp_fy1 = np.random.choice([1, 2, 78, 79], sp_fail)
         sp_fx2 = np.random.uniform(92, 108, sp_fail)
         sp_fy2 = np.random.uniform(15, 65, sp_fail)
-
         pitch.arrows(
             sp_fx1,
             sp_fy1,
@@ -319,7 +443,7 @@ elif (
             zorder=4,
         )
 
-# MODE 5: ALL CROSSES COMBINED
+# MODE 7: ALL CROSSES COMBINED
 elif (
     tactical_view
     == "🌐 ALL Crosses Combined (كافة العرضيات مجتمعة)"
@@ -327,7 +451,6 @@ elif (
     op_succ = int(team_data.get("OpenPlayCross Success", 4))
     op_tot = int(team_data.get("OpenPlayCross Total", 20))
     op_fail = max(0, op_tot - op_succ)
-
     sp_succ = int(team_data.get("SetPieceCross Success", 6))
     sp_tot = int(team_data.get("SetPieceCross Total", 14))
     sp_fail = max(0, sp_tot - sp_succ)
@@ -398,7 +521,7 @@ elif (
             zorder=4,
         )
 
-# MODE 6: OPEN PLAY CROSSES
+# MODE 8: OPEN PLAY CROSSES
 elif tactical_view == "↗️ Open Play Crosses (عرضيات اللعب المفتوح)":
     op_succ = int(team_data.get("OpenPlayCross Success", 4))
     op_tot = int(team_data.get("OpenPlayCross Total", 20))
@@ -439,7 +562,7 @@ elif tactical_view == "↗️ Open Play Crosses (عرضيات اللعب الم�
             zorder=4,
         )
 
-# MODE 7: PASSES INTO HALF-SPACES
+# MODE 9: PASSES INTO HALF-SPACES
 elif tactical_view == "📥 ALL Passes INTO Half-Spaces":
     pass_succ = int(team_data.get("Pass Success", 1251))
     total_into_hs = int(pass_succ * 0.15)
@@ -471,7 +594,7 @@ elif tactical_view == "📥 ALL Passes INTO Half-Spaces":
         zorder=4,
     )
 
-# MODE 8: PASSES OUT OF HALF-SPACES
+# MODE 10: PASSES OUT OF HALF-SPACES
 elif tactical_view == "📤 ALL Passes OUT OF Half-Spaces":
     pass_succ = int(team_data.get("Pass Success", 1251))
     total_out_hs = int(pass_succ * 0.15)
@@ -503,7 +626,7 @@ elif tactical_view == "📤 ALL Passes OUT OF Half-Spaces":
         zorder=4,
     )
 
-# MODE 9: BALL RECOVERY ZONES
+# MODE 11: BALL RECOVERY ZONES
 elif (
     tactical_view
     == "🛡️ Ball Recovery Zones (254 Recoveries + 51 Interceptions)"
@@ -552,7 +675,7 @@ elif (
             zorder=5,
         )
 
-# MODE 10: TEAM RECOVERY HEATMAP
+# MODE 12: TEAM RECOVERY HEATMAP
 elif tactical_view == "🔥 Team Recovery Heatmap (Density Only)":
     rec = int(team_data.get("BallWon BallRecover", 254))
     sns.kdeplot(
@@ -567,7 +690,7 @@ elif tactical_view == "🔥 Team Recovery Heatmap (Density Only)":
         zorder=2,
     )
 
-# MODE 11: TEAM PRESSING MAP
+# MODE 13: TEAM PRESSING MAP
 elif tactical_view == "⚡ Team Pressing Map":
     px = np.clip(np.random.normal(65, 18, 120), 5, 115)
     py = np.clip(np.random.normal(40, 16, 120), 5, 75)
@@ -612,6 +735,16 @@ st.subheader(f"📋 {team_name} Quantitative Metrics Summary")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
+    st.markdown("### ⚽ Shooting Metrics")
+    st.write(
+        f"**Total Shots:** {int(team_data.get('Attempts Total', 42))} ({int(team_data.get('Attempts Success', 22))} On Target)"
+    )
+    st.write(
+        f"**Goals Scored:** {int(team_data.get('GoalsScored Total', 8))} (xG: {team_data.get('GoalsScored XG', 8.7)})"
+    )
+    st.write(f"**Shot Accuracy:** {team_data.get('Attempts Accuracy', 0)*100:.1f}%")
+
+with col2:
     st.markdown("### ↗️ Crosses Breakdown")
     st.write(
         f"**Open Play Crosses:** {int(team_data.get('OpenPlayCross Success', 4))} / {int(team_data.get('OpenPlayCross Total', 20))}"
@@ -621,32 +754,22 @@ with col1:
     )
     st.write(f"**Total Crosses:** {int(team_data.get('Cross Total', 34))}")
 
-with col2:
-    st.markdown("### ⚽ Passing Metrics")
+with col3:
+    st.markdown("### 🎯 Passing & Possession")
     st.write(
         f"**Total Passes:** {int(team_data.get('Pass Total', 0))} ({int(team_data.get('Pass Success', 0))} Succ.)"
     )
     st.write(
-        f"**Short Passes:** {int(team_data.get('ShortPass Total', 0))} ({int(team_data.get('ShortPass Success', 0))} Succ.)"
-    )
-    st.write(
-        f"**Long Passes:** {int(team_data.get('LongPass Total', 0))} ({int(team_data.get('LongPass Success', 0))} Succ.)"
-    )
-
-with col3:
-    st.markdown("### 🎯 Possession & Dominance")
-    st.write(
         f"**Avg Possession:** {team_data.get('Possession_TimePercent Average', 0)*100:.1f}%"
     )
-    st.write(f"**Offsides:** {int(team_data.get('Admin Offside', 0))}")
     st.write(f"**Corners Won:** {int(team_data.get('Admin Corners', 0))}")
 
 with col4:
-    st.markdown("### 🛡️ Defensive Actions")
+    st.markdown("### 🛡️ Defensive & Conceded")
+    st.write(
+        f"**Goals Conceded:** {int(team_data.get('GoalsConceded Total', 1))}"
+    )
+    st.write(f"**Defensive Blocks:** {int(team_data.get('Defensive Blocks', 10))}")
     st.write(
         f"**Ball Recoveries:** {int(team_data.get('BallWon BallRecover', 0))}"
     )
-    st.write(
-        f"**Interceptions:** {int(team_data.get('BallWon InterceptionWon', 0))}"
-    )
-    st.write(f"**Tackles Won:** {int(team_data.get('BallWon TackleWon', 0))}")
