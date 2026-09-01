@@ -48,16 +48,16 @@ team_data = df.iloc[0]
 team_name = team_data.get("Team Name", "Selected Team")
 
 # ---------------------------------------------------------
-# 2. Tactical Mode Selection Buttons (فصل الخريطة الحرارية عن النقاط)
+# 2. Tactical Mode Selection Buttons
 # ---------------------------------------------------------
 st.sidebar.markdown("---")
 st.sidebar.header("🗺️ Tactical Pitch Views")
 tactical_view = st.sidebar.radio(
     "Select Tactical Visual Mode:",
     [
+        "↗️ Detailed Crosses Breakdown",
         "🛡️ Ball Recovery Zones (Points Only)",
         "🔥 Team Recovery Heatmap (Density Only)",
-        "↗️ Crosses Map",
         "📥 Passes INTO Half-Spaces",
         "📤 Passes OUT OF Half-Spaces",
         "🎯 Team Passing Structure",
@@ -103,13 +103,112 @@ ax.text(
 # 4. Tactical Views Logic
 # ---------------------------------------------------------
 
-# MODE 1: BALL RECOVERY POINTS ONLY (نقاط الـ 254 فقط بدون هيت ماب)
-if tactical_view == "🛡️ Ball Recovery Zones (Points Only)":
+# MODE 1: DETAILED CROSSES BREAKDOWN (تلوين كل نوع من العرضيات)
+if tactical_view == "↗️ Detailed Crosses Breakdown":
+    op_succ = int(team_data.get("OpenPlayCross Success", 4))
+    op_tot = int(team_data.get("OpenPlayCross Total", 20))
+    op_fail = max(0, op_tot - op_succ)
+
+    sp_succ = int(team_data.get("SetPieceCross Success", 6))
+    sp_tot = int(team_data.get("SetPieceCross Total", 14))
+    sp_fail = max(0, sp_tot - sp_succ)
+
+    # 1. Open Play Completed Crosses (Green Arrows - 4)
+    if op_succ > 0:
+        op_sx1 = np.random.uniform(70, 102, op_succ)
+        op_sy1 = np.random.choice(
+            [np.random.uniform(5, 17), np.random.uniform(63, 75)], op_succ
+        )
+        op_sx2 = np.random.uniform(94, 114, op_succ)
+        op_sy2 = np.random.uniform(22, 58, op_succ)
+
+        pitch.arrows(
+            op_sx1,
+            op_sy1,
+            op_sx2,
+            op_sy2,
+            color="#00ff66",
+            width=2.5,
+            headwidth=4.5,
+            headlength=4.5,
+            ax=ax,
+            label=f"Open Play Completed ({op_succ})",
+            zorder=5,
+        )
+
+    # 2. Open Play Incomplete Crosses (Red Arrows - 16)
+    if op_fail > 0:
+        op_fx1 = np.random.uniform(65, 100, op_fail)
+        op_fy1 = np.random.choice(
+            [np.random.uniform(5, 17), np.random.uniform(63, 75)], op_fail
+        )
+        op_fx2 = np.random.uniform(85, 108, op_fail)
+        op_fy2 = np.random.uniform(10, 70, op_fail)
+
+        pitch.arrows(
+            op_fx1,
+            op_fy1,
+            op_fx2,
+            op_fy2,
+            color="#ff3333",
+            width=1.8,
+            headwidth=4,
+            headlength=4,
+            alpha=0.7,
+            ax=ax,
+            label=f"Open Play Incomplete ({op_fail})",
+            zorder=3,
+        )
+
+    # 3. Set-Piece Completed Crosses (Purple Arrows - 6)
+    if sp_succ > 0:
+        sp_sx1 = np.random.choice([114, 114, 6, 6], sp_succ)  # Corner spots
+        sp_sy1 = np.random.choice([2, 78, 2, 78], sp_succ)
+        sp_sx2 = np.random.uniform(92, 112, sp_succ)
+        sp_sy2 = np.random.uniform(25, 55, sp_succ)
+
+        pitch.arrows(
+            sp_sx1,
+            sp_sy1,
+            sp_sx2,
+            sp_sy2,
+            color="#d500f9",
+            width=2.5,
+            headwidth=4.5,
+            headlength=4.5,
+            ax=ax,
+            label=f"Set-Piece Completed ({sp_succ})",
+            zorder=5,
+        )
+
+    # 4. Set-Piece Incomplete Crosses (Orange/Yellow Arrows - 8)
+    if sp_fail > 0:
+        sp_fx1 = np.random.choice([114, 114, 6, 6], sp_fail)
+        sp_fy1 = np.random.choice([2, 78, 2, 78], sp_fail)
+        sp_fx2 = np.random.uniform(88, 106, sp_fail)
+        sp_fy2 = np.random.uniform(15, 65, sp_fail)
+
+        pitch.arrows(
+            sp_fx1,
+            sp_fy1,
+            sp_fx2,
+            sp_fy2,
+            color="#ffab00",
+            width=2,
+            headwidth=4,
+            headlength=4,
+            alpha=0.75,
+            ax=ax,
+            label=f"Set-Piece Incomplete ({sp_fail})",
+            zorder=4,
+        )
+
+# MODE 2: BALL RECOVERY POINTS ONLY
+elif tactical_view == "🛡️ Ball Recovery Zones (Points Only)":
     rec = int(team_data.get("BallWon BallRecover", 254))
     inter = int(team_data.get("BallWon InterceptionWon", 51))
     tack = int(team_data.get("BallWon TackleWon", 24))
 
-    # 1. Recoveries Points (Cyan Squares)
     rx = np.random.uniform(10, 105, rec)
     ry = np.random.uniform(5, 75, rec)
     pitch.scatter(
@@ -126,7 +225,6 @@ if tactical_view == "🛡️ Ball Recovery Zones (Points Only)":
         zorder=4,
     )
 
-    # 2. Interceptions Points (Orange Diamonds)
     if inter > 0:
         ix = np.random.uniform(15, 95, inter)
         iy = np.random.uniform(5, 75, inter)
@@ -143,7 +241,6 @@ if tactical_view == "🛡️ Ball Recovery Zones (Points Only)":
             zorder=5,
         )
 
-    # 3. Tackles Won Points (Green Circles)
     if tack > 0:
         tx = np.random.uniform(15, 85, tack)
         ty = np.random.uniform(5, 75, tack)
@@ -160,13 +257,12 @@ if tactical_view == "🛡️ Ball Recovery Zones (Points Only)":
             zorder=5,
         )
 
-# MODE 2: TEAM RECOVERY HEATMAP (خريطة حرارية فقط بدون نقاط)
+# MODE 3: TEAM RECOVERY HEATMAP
 elif tactical_view == "🔥 Team Recovery Heatmap (Density Only)":
     rec = int(team_data.get("BallWon BallRecover", 254))
     rx = np.random.uniform(10, 105, rec)
     ry = np.random.uniform(5, 75, rec)
 
-    # Pure KDE Density Map for Recoveries
     sns.kdeplot(
         x=rx,
         y=ry,
@@ -177,32 +273,6 @@ elif tactical_view == "🔥 Team Recovery Heatmap (Density Only)":
         cmap="YlOrRd",
         alpha=0.75,
         zorder=2,
-    )
-
-# MODE 3: CROSSES MAP
-elif tactical_view == "↗️ Crosses Map":
-    cross_success = int(team_data.get("Cross Success", 10))
-    cnt = min(max(cross_success, 10), 30)
-
-    cx1 = np.random.uniform(65, 105, cnt)
-    cy1 = np.random.choice(
-        [np.random.uniform(5, 17), np.random.uniform(63, 75)], cnt
-    )
-    cx2 = np.random.uniform(92, 114, cnt)
-    cy2 = np.random.uniform(22, 58, cnt)
-
-    pitch.arrows(
-        cx1,
-        cy1,
-        cx2,
-        cy2,
-        color="#d500f9",
-        width=2.5,
-        headwidth=4.5,
-        headlength=4.5,
-        ax=ax,
-        label=f"Completed Crosses ({cross_success})",
-        zorder=4,
     )
 
 # MODE 4: PASSES INTO HALF-SPACES
@@ -336,13 +406,14 @@ st.subheader(f"📋 {team_name} Quantitative Metrics Summary")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.markdown("### ⚽ Passing & Crosses")
-    st.write(f"**Total Passes:** {int(team_data.get('Pass Total', 0))}")
-    st.write(f"**Pass Accuracy:** {team_data.get('Pass Accuracy', 0)*100:.1f}%")
-    st.write(f"**Total Crosses:** {int(team_data.get('Cross Total', 0))}")
+    st.markdown("### ↗️ Crosses Breakdown")
     st.write(
-        f"**Cross Accuracy:** {team_data.get('Cross Accuracy', 0)*100:.1f}%"
+        f"**Open Play Crosses:** {int(team_data.get('OpenPlayCross Success', 4))} / {int(team_data.get('OpenPlayCross Total', 20))}"
     )
+    st.write(
+        f"**Set-Piece Crosses:** {int(team_data.get('SetPieceCross Success', 6))} / {int(team_data.get('SetPieceCross Total', 14))}"
+    )
+    st.write(f"**Total Crosses:** {int(team_data.get('Cross Total', 34))}")
 
 with col2:
     st.markdown("### 🎯 Possession & Dominance")
