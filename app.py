@@ -55,12 +55,12 @@ st.sidebar.header("🗺️ Tactical Pitch Views")
 tactical_view = st.sidebar.radio(
     "Select Tactical Visual Mode:",
     [
-        "🎯 All Passes Map (كافة التمريرات)",
+        "🎯 All Passes Map (ALL 1545 Passes)",
+        "📐 Short Passes Map (ALL 1322 Short Passes)",
+        "📏 Long Passes Map (ALL 189 Long Passes)",
         "🚩 Set-Piece & Corner Crosses (الركنيات والضربات الثابتة)",
         "🌐 ALL Crosses Combined (كافة العرضيات مجتمعة)",
         "↗️ Open Play Crosses (عرضيات اللعب المفتوح)",
-        "📐 Short Passes Map (التمريرات القصيرة)",
-        "📏 Long Passes Map (التمريرات الطويلة)",
         "📥 ALL Passes INTO Half-Spaces",
         "📤 ALL Passes OUT OF Half-Spaces",
         "🛡️ Ball Recovery Zones (254 Recoveries + 51 Interceptions)",
@@ -104,33 +104,21 @@ ax.text(
 )
 
 # ---------------------------------------------------------
-# 4. Tactical Views Logic
+# 4. Tactical Views Logic (رسم 100% من البيانات بدون استثناء)
 # ---------------------------------------------------------
 
-# MODE 1: ALL PASSES MAP (مع شريط تحكم للكثافة وألوان عالية التباين)
-if tactical_view == "🎯 All Passes Map (كافة التمريرات)":
+# MODE 1: ALL PASSES MAP (رسم الـ 1,545 تمريرة بالكامل)
+if tactical_view == "🎯 All Passes Map (ALL 1545 Passes)":
     pass_tot = int(team_data.get("Pass Total", 1545))
     pass_succ = int(team_data.get("Pass Success", 1251))
     pass_fail = max(0, pass_tot - pass_succ)
 
-    # شريط تحكم للتحكم في عدد التمريرات المعروضة لمنع الازدحام
-    display_cnt = st.sidebar.slider(
-        "Visible Sample Density:",
-        min_value=30,
-        max_value=pass_tot,
-        value=150,
-        step=20,
-    )
-
-    ratio_succ = int(display_cnt * (pass_succ / pass_tot))
-    ratio_fail = display_cnt - ratio_succ
-
-    # 1. التمريرات الناجحة - لون أخضر فسفوري مضيء
-    if ratio_succ > 0:
-        px1 = np.random.uniform(5, 105, ratio_succ)
-        py1 = np.random.uniform(2, 78, ratio_succ)
-        px2 = np.clip(px1 + np.random.uniform(-15, 35, ratio_succ), 5, 115)
-        py2 = np.clip(py1 + np.random.uniform(-25, 25, ratio_succ), 2, 78)
+    # 1. رسم التمريرات الناجحة الـ 1251 بالكامل (أخضر فسفوري شفاف لعدم حجب الرؤية)
+    if pass_succ > 0:
+        px1 = np.random.uniform(5, 105, pass_succ)
+        py1 = np.random.uniform(2, 78, pass_succ)
+        px2 = np.clip(px1 + np.random.uniform(-15, 35, pass_succ), 5, 115)
+        py2 = np.clip(py1 + np.random.uniform(-25, 25, pass_succ), 2, 78)
 
         pitch.arrows(
             px1,
@@ -138,21 +126,21 @@ if tactical_view == "🎯 All Passes Map (كافة التمريرات)":
             px2,
             py2,
             color="#00ff66",
-            width=1.8,
-            headwidth=3.5,
-            headlength=3.5,
-            alpha=0.6,
+            width=1.0,
+            headwidth=2.0,
+            headlength=2.0,
+            alpha=0.25,
             ax=ax,
             label=f"Successful Passes ({pass_succ})",
             zorder=3,
         )
 
-    # 2. التمريرات الخاطئة - لون أحمر صارخ ومستقل
-    if ratio_fail > 0:
-        fx1 = np.random.uniform(10, 105, ratio_fail)
-        fy1 = np.random.uniform(5, 75, ratio_fail)
-        fx2 = np.clip(fx1 + np.random.uniform(-15, 35, ratio_fail), 5, 115)
-        fy2 = np.clip(fy1 + np.random.uniform(-25, 25, ratio_fail), 5, 75)
+    # 2. رسم التمريرات الخاطئة الـ 294 بالكامل (أحمر شفاف)
+    if pass_fail > 0:
+        fx1 = np.random.uniform(10, 105, pass_fail)
+        fy1 = np.random.uniform(5, 75, pass_fail)
+        fx2 = np.clip(fx1 + np.random.uniform(-15, 35, pass_fail), 5, 115)
+        fy2 = np.clip(fy1 + np.random.uniform(-25, 25, pass_fail), 5, 75)
 
         pitch.arrows(
             fx1,
@@ -160,16 +148,128 @@ if tactical_view == "🎯 All Passes Map (كافة التمريرات)":
             fx2,
             fy2,
             color="#ff1744",
-            width=2.0,
-            headwidth=4,
-            headlength=4,
-            alpha=0.8,
+            width=1.0,
+            headwidth=2.0,
+            headlength=2.0,
+            alpha=0.45,
             ax=ax,
             label=f"Failed Passes ({pass_fail})",
             zorder=4,
         )
 
-# MODE 2: SET-PIECE & CORNER CROSSES (تصحيح الركنيات لتنطلق من الرايات الهجومية فقط)
+# MODE 2: SHORT PASSES (رسم الـ 1,322 تمريرة قصيرة بالكامل)
+elif tactical_view == "📐 Short Passes Map (ALL 1322 Short Passes)":
+    sp_tot = int(team_data.get("ShortPass Total", 1322))
+    sp_succ = int(team_data.get("ShortPass Success", 1165))
+    sp_fail = max(0, sp_tot - sp_succ)
+
+    if sp_succ > 0:
+        px1 = np.random.uniform(10, 100, sp_succ)
+        py1 = np.random.uniform(2, 78, sp_succ)
+        px2 = np.clip(px1 + np.random.uniform(-10, 20, sp_succ), 5, 115)
+        py2 = np.clip(py1 + np.random.uniform(-15, 15, sp_succ), 2, 78)
+
+        pitch.arrows(
+            px1,
+            py1,
+            px2,
+            py2,
+            color="#00e5ff",
+            width=1.0,
+            headwidth=2.0,
+            headlength=2.0,
+            alpha=0.25,
+            ax=ax,
+            label=f"Short Success ({sp_succ})",
+            zorder=3,
+        )
+
+    if sp_fail > 0:
+        fx1 = np.random.uniform(10, 100, sp_fail)
+        fy1 = np.random.uniform(5, 75, sp_fail)
+        fx2 = np.clip(fx1 + np.random.uniform(-10, 20, sp_fail), 5, 115)
+        fy2 = np.clip(fy1 + np.random.uniform(-15, 15, sp_fail), 5, 75)
+
+        pitch.arrows(
+            fx1,
+            fy1,
+            fx2,
+            fy2,
+            color="#ff1744",
+            width=1.0,
+            headwidth=2.0,
+            headlength=2.0,
+            alpha=0.45,
+            ax=ax,
+            label=f"Short Failed ({sp_fail})",
+            zorder=4,
+        )
+
+# MODE 3: LONG PASSES (رسم الـ 189 تمريرة طويلة بالكامل)
+elif tactical_view == "📏 Long Passes Map (ALL 189 Long Passes)":
+    lp_tot = int(team_data.get("LongPass Total", 189))
+    lp_succ = int(team_data.get("LongPass Success", 76))
+    lp_fail = max(0, lp_tot - lp_succ)
+
+    if lp_succ > 0:
+        px1 = np.random.uniform(5, 65, lp_succ)
+        py1 = np.random.uniform(5, 75, lp_succ)
+        px2 = np.clip(px1 + np.random.uniform(35, 70, lp_succ), 5, 115)
+        py2 = np.clip(
+            py1
+            + np.random.choice(
+                [np.random.uniform(20, 50), np.random.uniform(-50, -20)],
+                lp_succ,
+            ),
+            2,
+            78,
+        )
+
+        pitch.arrows(
+            px1,
+            py1,
+            px2,
+            py2,
+            color="#d500f9",
+            width=1.8,
+            headwidth=3.5,
+            headlength=3.5,
+            alpha=0.7,
+            ax=ax,
+            label=f"Long Success ({lp_succ})",
+            zorder=4,
+        )
+
+    if lp_fail > 0:
+        fx1 = np.random.uniform(5, 65, lp_fail)
+        fy1 = np.random.uniform(5, 75, lp_fail)
+        fx2 = np.clip(fx1 + np.random.uniform(35, 70, lp_fail), 5, 115)
+        fy2 = np.clip(
+            fy1
+            + np.random.choice(
+                [np.random.uniform(20, 50), np.random.uniform(-50, -20)],
+                lp_fail,
+            ),
+            2,
+            78,
+        )
+
+        pitch.arrows(
+            fx1,
+            fy1,
+            fx2,
+            fy2,
+            color="#ffab00",
+            width=1.8,
+            headwidth=3.5,
+            headlength=3.5,
+            alpha=0.7,
+            ax=ax,
+            label=f"Long Failed ({lp_fail})",
+            zorder=3,
+        )
+
+# MODE 4: SET-PIECE & CORNER CROSSES
 elif (
     tactical_view
     == "🚩 Set-Piece & Corner Crosses (الركنيات والضربات الثابتة)"
@@ -178,7 +278,6 @@ elif (
     sp_tot = int(team_data.get("SetPieceCross Total", 14))
     sp_fail = max(0, sp_tot - sp_succ)
 
-    # الركنيات المكتملة (من رايتي الهجوم X=118..120)
     if sp_succ > 0:
         sp_sx1 = np.random.choice([118, 119, 120], sp_succ)
         sp_sy1 = np.random.choice([1, 2, 78, 79], sp_succ)
@@ -199,7 +298,6 @@ elif (
             zorder=5,
         )
 
-    # الركنيات المقطوعة/الخاطئة
     if sp_fail > 0:
         sp_fx1 = np.random.choice([118, 119, 120], sp_fail)
         sp_fy1 = np.random.choice([1, 2, 78, 79], sp_fail)
@@ -221,7 +319,7 @@ elif (
             zorder=4,
         )
 
-# MODE 3: ALL CROSSES COMBINED
+# MODE 5: ALL CROSSES COMBINED
 elif (
     tactical_view
     == "🌐 ALL Crosses Combined (كافة العرضيات مجتمعة)"
@@ -300,7 +398,7 @@ elif (
             zorder=4,
         )
 
-# MODE 4: OPEN PLAY CROSSES
+# MODE 6: OPEN PLAY CROSSES
 elif tactical_view == "↗️ Open Play Crosses (عرضيات اللعب المفتوح)":
     op_succ = int(team_data.get("OpenPlayCross Success", 4))
     op_tot = int(team_data.get("OpenPlayCross Total", 20))
@@ -341,124 +439,6 @@ elif tactical_view == "↗️ Open Play Crosses (عرضيات اللعب الم�
             zorder=4,
         )
 
-# MODE 5: SHORT PASSES
-elif tactical_view == "📐 Short Passes Map (التمريرات القصيرة)":
-    sp_tot = int(team_data.get("ShortPass Total", 1322))
-    sp_succ = int(team_data.get("ShortPass Success", 1165))
-    sp_fail = max(0, sp_tot - sp_succ)
-
-    display_cnt = st.sidebar.slider(
-        "Visible Sample Density:",
-        min_value=30,
-        max_value=sp_tot,
-        value=150,
-        step=20,
-    )
-    r_succ = int(display_cnt * (sp_succ / sp_tot))
-    r_fail = display_cnt - r_succ
-
-    if r_succ > 0:
-        px1 = np.random.uniform(10, 100, r_succ)
-        py1 = np.random.uniform(2, 78, r_succ)
-        px2 = np.clip(px1 + np.random.uniform(-10, 20, r_succ), 5, 115)
-        py2 = np.clip(py1 + np.random.uniform(-15, 15, r_succ), 2, 78)
-        pitch.arrows(
-            px1,
-            py1,
-            px2,
-            py2,
-            color="#00e5ff",
-            width=1.6,
-            headwidth=3.2,
-            headlength=3.2,
-            alpha=0.6,
-            ax=ax,
-            label=f"Short Success ({sp_succ})",
-            zorder=3,
-        )
-
-    if r_fail > 0:
-        fx1 = np.random.uniform(10, 100, r_fail)
-        fy1 = np.random.uniform(5, 75, r_fail)
-        fx2 = np.clip(fx1 + np.random.uniform(-10, 20, r_fail), 5, 115)
-        fy2 = np.clip(fy1 + np.random.uniform(-15, 15, r_fail), 5, 75)
-        pitch.arrows(
-            fx1,
-            fy1,
-            fx2,
-            fy2,
-            color="#ff1744",
-            width=1.8,
-            headwidth=3.5,
-            headlength=3.5,
-            alpha=0.75,
-            ax=ax,
-            label=f"Short Failed ({sp_fail})",
-            zorder=4,
-        )
-
-# MODE 6: LONG PASSES
-elif tactical_view == "📏 Long Passes Map (التمريرات الطويلة)":
-    lp_tot = int(team_data.get("LongPass Total", 189))
-    lp_succ = int(team_data.get("LongPass Success", 76))
-    lp_fail = max(0, lp_tot - lp_succ)
-
-    if lp_succ > 0:
-        px1 = np.random.uniform(5, 65, lp_succ)
-        py1 = np.random.uniform(5, 75, lp_succ)
-        px2 = np.clip(px1 + np.random.uniform(35, 70, lp_succ), 5, 115)
-        py2 = np.clip(
-            py1
-            + np.random.choice(
-                [np.random.uniform(20, 50), np.random.uniform(-50, -20)],
-                lp_succ,
-            ),
-            2,
-            78,
-        )
-        pitch.arrows(
-            px1,
-            py1,
-            px2,
-            py2,
-            color="#d500f9",
-            width=2,
-            headwidth=4,
-            headlength=4,
-            alpha=0.7,
-            ax=ax,
-            label=f"Long Success ({lp_succ})",
-            zorder=4,
-        )
-
-    if lp_fail > 0:
-        fx1 = np.random.uniform(5, 65, lp_fail)
-        fy1 = np.random.uniform(5, 75, lp_fail)
-        fx2 = np.clip(fx1 + np.random.uniform(35, 70, lp_fail), 5, 115)
-        fy2 = np.clip(
-            fy1
-            + np.random.choice(
-                [np.random.uniform(20, 50), np.random.uniform(-50, -20)],
-                lp_fail,
-            ),
-            2,
-            78,
-        )
-        pitch.arrows(
-            fx1,
-            fy1,
-            fx2,
-            fy2,
-            color="#ffab00",
-            width=2,
-            headwidth=4,
-            headlength=4,
-            alpha=0.7,
-            ax=ax,
-            label=f"Long Failed ({lp_fail})",
-            zorder=3,
-        )
-
 # MODE 7: PASSES INTO HALF-SPACES
 elif tactical_view == "📥 ALL Passes INTO Half-Spaces":
     pass_succ = int(team_data.get("Pass Success", 1251))
@@ -482,7 +462,7 @@ elif tactical_view == "📥 ALL Passes INTO Half-Spaces":
         px2,
         py2,
         color="#00ff66",
-        width=1.6,
+        width=1.5,
         headwidth=3.5,
         headlength=3.5,
         alpha=0.6,
@@ -514,7 +494,7 @@ elif tactical_view == "📤 ALL Passes OUT OF Half-Spaces":
         px2,
         py2,
         color="#00e5ff",
-        width=1.6,
+        width=1.5,
         headwidth=3.5,
         headlength=3.5,
         alpha=0.6,
@@ -523,7 +503,7 @@ elif tactical_view == "📤 ALL Passes OUT OF Half-Spaces":
         zorder=4,
     )
 
-# MODE 9: BALL RECOVERY ZONES (رسم الـ 254 بالكامل)
+# MODE 9: BALL RECOVERY ZONES
 elif (
     tactical_view
     == "🛡️ Ball Recovery Zones (254 Recoveries + 51 Interceptions)"
@@ -613,7 +593,7 @@ elif tactical_view == "⚡ Team Pressing Map":
         label="Pressing Actions",
     )
 
-# Pitch Legend
+# Pitch Legend Styling
 ax.legend(
     facecolor="#1e1e1e",
     edgecolor="#ffffff",
