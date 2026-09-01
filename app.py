@@ -2,15 +2,16 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import streamlit as st
 from mplsoccer import Pitch
 
 # Page Configuration
 st.set_page_config(
-    page_title="Single-Pitch All Events Action Map", layout="wide"
+    page_title="Single-Pitch All Events & Heatmap Map", layout="wide"
 )
 
-st.title("⚽ Football Player Action Map")
+st.title("⚽ Complete Single-Pitch Action Map & Heatmap")
 
 # ---------------------------------------------------------
 # 1. File Upload Section
@@ -48,8 +49,14 @@ selected_player = st.sidebar.selectbox(
 p_data = df[df["Full Name"] == selected_player].iloc[0]
 
 st.sidebar.markdown("---")
-st.sidebar.header("🎨 Toggle Visible Events")
+st.sidebar.header("🎨 Toggle Visible Layers")
 
+# Heatmap Layer Toggle
+show_heatmap = st.sidebar.checkbox(
+    "🔥 Show Density Heatmap (Underlay)", value=True
+)
+
+# Action Event Toggles
 show_passes = st.sidebar.checkbox("🎯 Passes (Green / Red Arrows)", value=True)
 show_goals = st.sidebar.checkbox("⚽ Goals (Gold Star)", value=True)
 show_assists = st.sidebar.checkbox(
@@ -124,6 +131,47 @@ ax.text(
     ),
 )
 
+# ---------------------------------------------------------
+# LAYER 1: HEATMAP DENSITY (KDE UNDERLAY)
+# ---------------------------------------------------------
+if show_heatmap:
+    total_actions = int(
+        p_data.get("Pass Total", 0)
+        + p_data.get("Dribble Total", 0)
+        + p_data.get("BallWon Total", 0)
+    )
+    sample_size = max(min(total_actions, 150), 40)
+
+    hx = np.clip(
+        np.random.normal(
+            loc=(zone["x"][0] + zone["x"][1]) / 2, scale=12, size=sample_size
+        ),
+        2,
+        118,
+    )
+    hy = np.clip(
+        np.random.normal(
+            loc=(zone["y"][0] + zone["y"][1]) / 2, scale=10, size=sample_size
+        ),
+        2,
+        78,
+    )
+
+    sns.kdeplot(
+        x=hx,
+        y=hy,
+        ax=ax,
+        fill=True,
+        thresh=0.08,
+        levels=15,
+        cmap="YlOrRd",
+        alpha=0.45,
+        zorder=2,
+    )
+
+# ---------------------------------------------------------
+# LAYER 2: ACTION EVENT MARKERS & ARROWS
+# ---------------------------------------------------------
 # A. Pass Vectors (Green vs Red Arrows)
 if show_passes:
     pass_success = p_data.get("Pass Success", 0)
@@ -149,7 +197,7 @@ if show_passes:
             headlength=4,
             ax=ax,
             label=f"Completed Pass ({int(pass_success)})",
-            zorder=3,
+            zorder=4,
         )
 
     # Incomplete Passes
@@ -192,7 +240,7 @@ if show_crosses:
             linewidth=1,
             ax=ax,
             label=f"Completed Cross ({int(cross_cnt)})",
-            zorder=4,
+            zorder=5,
         )
 
 # C. Key Passes & Assists (Orange Plus)
@@ -215,7 +263,7 @@ if show_assists:
             linewidth=1,
             ax=ax,
             label=f"Key Pass / Assist ({int(key_passes)})",
-            zorder=5,
+            zorder=6,
         )
 
 # D. Successful Dribbles (Yellow Circles)
@@ -236,7 +284,7 @@ if show_dribbles:
             linewidth=1,
             ax=ax,
             label=f"Successful Dribble ({int(dribbles_cnt)})",
-            zorder=4,
+            zorder=5,
         )
 
 # E. Ball Recoveries & Tackles (Cyan Squares)
@@ -257,7 +305,7 @@ if show_ball_won:
             linewidth=1,
             ax=ax,
             label=f"Ball Recovery ({int(tackles_cnt)})",
-            zorder=4,
+            zorder=5,
         )
 
 # F. Clearances & Blocks (Gray Diamonds)
@@ -280,7 +328,7 @@ if show_clearances:
             linewidth=1,
             ax=ax,
             label=f"Clearance / Block ({int(def_cnt)})",
-            zorder=4,
+            zorder=5,
         )
 
 # G. Fouls Committed (Red Hexagons)
@@ -301,7 +349,7 @@ if show_fouls:
             linewidth=1,
             ax=ax,
             label=f"Foul Committed ({int(fouls_cnt)})",
-            zorder=4,
+            zorder=5,
         )
 
 # H. Goals Scored (Gold Star)
@@ -322,7 +370,7 @@ if show_goals:
             linewidth=1.5,
             ax=ax,
             label=f"Goal Scored ({int(goals_cnt)})",
-            zorder=6,
+            zorder=7,
         )
 
 # Pitch Legend Styling for Dark Mode
