@@ -55,9 +55,9 @@ st.sidebar.header("🗺️ Tactical Pitch Views")
 tactical_view = st.sidebar.radio(
     "Select Tactical Visual Mode:",
     [
+        "🚩 Set-Piece & Corner Crosses (الركنيات والضربات الثابتة)",
         "🌐 ALL Crosses Combined (كافة العرضيات مجتمعة)",
         "↗️ Open Play Crosses (عرضيات اللعب المفتوح)",
-        "🚩 Set-Piece & Corner Crosses (الركنيات والضربات الثابتة)",
         "🎯 All Passes Map (كافة التمريرات - 1545)",
         "📐 Short Passes Map (التمريرات القصيرة - 1322)",
         "📏 Long Passes Map (التمريرات الطويلة - 189)",
@@ -104,11 +104,63 @@ ax.text(
 )
 
 # ---------------------------------------------------------
-# 4. Tactical Views Logic (بدون أي حد أدنى أو أقصى)
+# 4. Tactical Views Logic (تصحيح الاتجاهات والركنيات)
 # ---------------------------------------------------------
 
-# MODE 1: ALL CROSSES COMBINED (كافة العرضيات المفتوحة والثابتة بالكامل)
+# MODE 1: SET-PIECE & CORNER CROSSES (تصحيح انطلاق الركنيات من زوايا الهجوم فقط)
 if (
+    tactical_view
+    == "🚩 Set-Piece & Corner Crosses (الركنيات والضربات الثابتة)"
+):
+    sp_succ = int(team_data.get("SetPieceCross Success", 6))
+    sp_tot = int(team_data.get("SetPieceCross Total", 14))
+    sp_fail = max(0, sp_tot - sp_succ)
+
+    # الركنيات المكتملة (من رايتي الهجوم X=118..120 نحو الصندوق)
+    if sp_succ > 0:
+        sp_sx1 = np.random.choice([118, 119, 120], sp_succ)
+        sp_sy1 = np.random.choice([1, 2, 78, 79], sp_succ)
+        sp_sx2 = np.random.uniform(102, 114, sp_succ)
+        sp_sy2 = np.random.uniform(24, 56, sp_succ)
+
+        pitch.arrows(
+            sp_sx1,
+            sp_sy1,
+            sp_sx2,
+            sp_sy2,
+            color="#d500f9",
+            width=2.5,
+            headwidth=4.5,
+            headlength=4.5,
+            ax=ax,
+            label=f"Set-Piece / Corner Completed ({sp_succ})",
+            zorder=5,
+        )
+
+    # الركنيات الخاطئة/المشتتة
+    if sp_fail > 0:
+        sp_fx1 = np.random.choice([118, 119, 120], sp_fail)
+        sp_fy1 = np.random.choice([1, 2, 78, 79], sp_fail)
+        sp_fx2 = np.random.uniform(92, 108, sp_fail)
+        sp_fy2 = np.random.uniform(15, 65, sp_fail)
+
+        pitch.arrows(
+            sp_fx1,
+            sp_fy1,
+            sp_fx2,
+            sp_fy2,
+            color="#ffab00",
+            width=2,
+            headwidth=4,
+            headlength=4,
+            alpha=0.75,
+            ax=ax,
+            label=f"Set-Piece / Corner Incomplete ({sp_fail})",
+            zorder=4,
+        )
+
+# MODE 2: ALL CROSSES COMBINED
+elif (
     tactical_view
     == "🌐 ALL Crosses Combined (كافة العرضيات مجتمعة)"
 ):
@@ -120,7 +172,7 @@ if (
     sp_tot = int(team_data.get("SetPieceCross Total", 14))
     sp_fail = max(0, sp_tot - sp_succ)
 
-    # Open Play Completed (Green - 4)
+    # Open Play Completed
     if op_succ > 0:
         pitch.arrows(
             np.random.uniform(70, 102, op_succ),
@@ -138,7 +190,7 @@ if (
             zorder=5,
         )
 
-    # Open Play Failed (Red - 16)
+    # Open Play Failed
     if op_fail > 0:
         pitch.arrows(
             np.random.uniform(65, 100, op_fail),
@@ -157,13 +209,13 @@ if (
             zorder=3,
         )
 
-    # Set-Piece Completed (Purple - 6)
+    # Set-Piece Completed (من الزوايا الهجومية)
     if sp_succ > 0:
         pitch.arrows(
-            np.random.choice([114, 114, 6, 6], sp_succ),
-            np.random.choice([2, 78, 2, 78], sp_succ),
-            np.random.uniform(92, 112, sp_succ),
-            np.random.uniform(25, 55, sp_succ),
+            np.random.choice([118, 119, 120], sp_succ),
+            np.random.choice([1, 2, 78, 79], sp_succ),
+            np.random.uniform(102, 114, sp_succ),
+            np.random.uniform(24, 56, sp_succ),
             color="#d500f9",
             width=2.5,
             headwidth=4.5,
@@ -173,12 +225,12 @@ if (
             zorder=5,
         )
 
-    # Set-Piece Failed (Orange - 8)
+    # Set-Piece Failed
     if sp_fail > 0:
         pitch.arrows(
-            np.random.choice([114, 114, 6, 6], sp_fail),
-            np.random.choice([2, 78, 2, 78], sp_fail),
-            np.random.uniform(88, 106, sp_fail),
+            np.random.choice([118, 119, 120], sp_fail),
+            np.random.choice([1, 2, 78, 79], sp_fail),
+            np.random.uniform(92, 108, sp_fail),
             np.random.uniform(15, 65, sp_fail),
             color="#ffab00",
             width=2,
@@ -190,7 +242,7 @@ if (
             zorder=4,
         )
 
-# MODE 2: OPEN PLAY CROSSES
+# MODE 3: OPEN PLAY CROSSES
 elif tactical_view == "↗️ Open Play Crosses (عرضيات اللعب المفتوح)":
     op_succ = int(team_data.get("OpenPlayCross Success", 4))
     op_tot = int(team_data.get("OpenPlayCross Total", 20))
@@ -231,47 +283,7 @@ elif tactical_view == "↗️ Open Play Crosses (عرضيات اللعب الم�
             zorder=4,
         )
 
-# MODE 3: SET-PIECE & CORNER CROSSES
-elif (
-    tactical_view
-    == "🚩 Set-Piece & Corner Crosses (الركنيات والضربات الثابتة)"
-):
-    sp_succ = int(team_data.get("SetPieceCross Success", 6))
-    sp_tot = int(team_data.get("SetPieceCross Total", 14))
-    sp_fail = max(0, sp_tot - sp_succ)
-
-    if sp_succ > 0:
-        pitch.arrows(
-            np.random.choice([114, 114, 6, 6], sp_succ),
-            np.random.choice([2, 78, 2, 78], sp_succ),
-            np.random.uniform(92, 112, sp_succ),
-            np.random.uniform(25, 55, sp_succ),
-            color="#d500f9",
-            width=2.5,
-            headwidth=4.5,
-            headlength=4.5,
-            ax=ax,
-            label=f"Set-Piece Completed ({sp_succ})",
-            zorder=5,
-        )
-
-    if sp_fail > 0:
-        pitch.arrows(
-            np.random.choice([114, 114, 6, 6], sp_fail),
-            np.random.choice([2, 78, 2, 78], sp_fail),
-            np.random.uniform(88, 106, sp_fail),
-            np.random.uniform(15, 65, sp_fail),
-            color="#ffab00",
-            width=2,
-            headwidth=4,
-            headlength=4,
-            alpha=0.75,
-            ax=ax,
-            label=f"Set-Piece Incomplete ({sp_fail})",
-            zorder=4,
-        )
-
-# MODE 4: ALL PASSES (رسم الـ 1545 تمريرة بالكامل)
+# MODE 4: ALL PASSES
 elif tactical_view == "🎯 All Passes Map (كافة التمريرات - 1545)":
     pass_tot = int(team_data.get("Pass Total", 1545))
     pass_succ = int(team_data.get("Pass Success", 1251))
@@ -317,7 +329,7 @@ elif tactical_view == "🎯 All Passes Map (كافة التمريرات - 1545)"
             zorder=4,
         )
 
-# MODE 5: SHORT PASSES (رسم الـ 1322 تمريرة قصيرة بالكامل)
+# MODE 5: SHORT PASSES
 elif (
     tactical_view == "📐 Short Passes Map (التمريرات القصيرة - 1322)"
 ):
@@ -365,7 +377,7 @@ elif (
             zorder=4,
         )
 
-# MODE 6: LONG PASSES (رسم الـ 189 تمريرة طويلة بالكامل)
+# MODE 6: LONG PASSES
 elif (
     tactical_view == "📏 Long Passes Map (التمريرات الطويلة - 189)"
 ):
@@ -493,7 +505,7 @@ elif tactical_view == "📤 ALL Passes OUT OF Half-Spaces":
         zorder=4,
     )
 
-# MODE 9: BALL RECOVERY ZONES (رسم الـ 254 كاملة)
+# MODE 9: BALL RECOVERY ZONES
 elif (
     tactical_view
     == "🛡️ Ball Recovery Zones (254 Recoveries + 51 Interceptions)"
