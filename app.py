@@ -5,19 +5,19 @@ import pandas as pd
 import streamlit as st
 from mplsoccer import Pitch
 
-# ضبط إعدادات الصفحة
+# Page Configuration
 st.set_page_config(
-    page_title="Football Player Action Map", layout="wide"
+    page_title="Player Action Maps | Match Analytics", layout="wide"
 )
 
-st.title("⚽ خريطة أحداث اللاعب التفصيلية على الملعب (Action Map)")
+st.title("⚽ Football Player Action Map & Pitch Analytics")
 
 # ---------------------------------------------------------
-# 1. رفع وتمرير الملفات
+# 1. File Upload Section
 # ---------------------------------------------------------
-st.sidebar.header("📁 رفع الملف والتحكم")
+st.sidebar.header("📁 Data Upload")
 uploaded_file = st.sidebar.file_uploader(
-    "قم برفع ملف البيانات (CSV):", type=["csv"]
+    "Upload Players CSV File:", type=["csv"]
 )
 
 
@@ -28,43 +28,38 @@ def load_data(file):
 
 if uploaded_file is None:
     st.info(
-        "👋 يرجى رفع ملف البيانات (`PlayersData_2215.csv`) من القائمة الجانبية لبدء عرض خريطة الأحداث."
+        "👋 Please upload your data file (`PlayersData_2215.csv`) from the sidebar to start displaying action maps."
     )
     st.stop()
 
 df = load_data(uploaded_file)
 
 # ---------------------------------------------------------
-# 2. القائمة الجانبية وتحديد الأحداث المطلوب عرضها
+# 2. Player Selection & Filters
 # ---------------------------------------------------------
 selected_team = st.sidebar.selectbox(
-    "اختر الفريق:", sorted(df["Team"].dropna().unique())
+    "Select Team:", sorted(df["Team"].dropna().unique())
 )
 team_players = df[df["Team"] == selected_team]
 
 selected_player = st.sidebar.selectbox(
-    "اختر اللاعب:", sorted(team_players["Full Name"].dropna().unique())
+    "Select Player:", sorted(team_players["Full Name"].dropna().unique())
 )
 p_data = df[df["Full Name"] == selected_player].iloc[0]
 
 st.sidebar.markdown("---")
-st.sidebar.header("🎨 تصفية الأكشن والمؤشرات")
+st.sidebar.header("🎨 Action Filters")
 
-# تحديد تفعيل/إلغاء تفعيل أكشن معين على الملعب
-show_goals = st.sidebar.checkbox("⚽ الأهداف (Goals)", value=True)
-show_assists = st.sidebar.checkbox(
-    "🔑 التمريرات المفتاحية/الحاسمة (Assists/Key Passes)", value=True
-)
-show_dribbles = st.sidebar.checkbox("⚡ المراوغات (Dribbles)", value=True)
-show_ball_won = st.sidebar.checkbox(
-    "🛡️ استعادة الكرة/الافتطاع (Tackles/Ball Won)", value=True
-)
-show_crosses = st.sidebar.checkbox("↗️ العرضيات (Crosses)", value=True)
+# Toggle individual actions on the pitch
+show_goals = st.sidebar.checkbox("⚽ Goals", value=True)
+show_assists = st.sidebar.checkbox("🔑 Key Passes / Assists", value=True)
+show_dribbles = st.sidebar.checkbox("⚡ Successful Dribbles", value=True)
+show_ball_won = st.sidebar.checkbox("🛡️ Ball Recoveries / Tackles", value=True)
+show_crosses = st.sidebar.checkbox("↗️ Successful Crosses", value=True)
 
 # ---------------------------------------------------------
-# 3. توزيـع الأحداث والأكشن بـرموز وألـوان علـى الملـعب
+# 3. Position Pitch Mapping
 # ---------------------------------------------------------
-# إحداثيات تمركز المجهود حسب المراكز
 position_zones = {
     "GK": {"x": (5, 20), "y": (25, 55)},
     "CB": {"x": (20, 45), "y": (20, 60)},
@@ -84,34 +79,31 @@ position_zones = {
 pos = p_data.get("Primary Position", "CM")
 zone = position_zones.get(pos, {"x": (40, 80), "y": (20, 60)})
 
-# توليد إحداثيات موزعة منطقياً داخل زون اللاعب بناءً على إحصائياته
 np.random.seed(int(p_data["ID"]))
 
 
 def generate_coords(count, x_range, y_range):
     if count <= 0 or pd.isna(count):
         return [], []
-    # تحجيم الحد الأقصى للأكشن المعروض لتفادي ازدحام الخريطة
-    display_count = min(int(count), 25)
+    display_count = min(int(count), 30)
     xs = np.random.uniform(x_range[0], x_range[1], display_count)
     ys = np.random.uniform(y_range[0], y_range[1], display_count)
     return xs, ys
 
 
-# رسم الملعب التكتيكي
+# Pitch Visual Setup
 pitch = Pitch(
     pitch_type="statsbomb",
-    pitch_color="#1e1e1e",
+    pitch_color="#121e17",
     line_color="#ffffff",
     stripe=True,
-    stripe_color="#252525",
+    stripe_color="#19281f",
 )
 fig, ax = pitch.draw(figsize=(12, 8))
 
-# 1. رسم الأهداف (Goals)
+# 1. Goals
 if show_goals:
     goals_cnt = p_data.get("GoalsScored Total", 0)
-    # الأهداف تكون قريبة من منطقة الجزاء والمرمى
     gx, gy = generate_coords(
         goals_cnt, (max(zone["x"][0], 88), 116), (25, 55)
     )
@@ -120,16 +112,16 @@ if show_goals:
             gx,
             gy,
             s=250,
-            color="#e74c3c",
+            color="#ff3333",
             marker="*",
-            edgecolors="yellow",
+            edgecolors="#ffff00",
             linewidth=1.5,
             ax=ax,
-            label=f"هدف ({int(goals_cnt)})",
+            label=f"Goal ({int(goals_cnt)})",
             zorder=5,
         )
 
-# 2. رسم التمريرات الحاسمة / المفتاحية (Assists & Key Passes)
+# 2. Key Passes / Assists
 if show_assists:
     key_passes = p_data.get("Chances KeyPasses", 0) + p_data.get(
         "Chances Assists", 0
@@ -142,16 +134,16 @@ if show_assists:
             ax_x,
             ax_y,
             s=180,
-            color="#2ecc71",
+            color="#00ff66",
             marker="P",
             edgecolors="white",
             linewidth=1,
             ax=ax,
-            label=f"تمريرة حاسمة/مفتاحية ({int(key_passes)})",
+            label=f"Key Pass / Assist ({int(key_passes)})",
             zorder=4,
         )
 
-# 3. رسم المراوغات (Successful Dribbles)
+# 3. Successful Dribbles
 if show_dribbles:
     dribbles_cnt = p_data.get("Dribble Success", 0)
     dx, dy = generate_coords(dribbles_cnt, zone["x"], zone["y"])
@@ -160,16 +152,16 @@ if show_dribbles:
             dx,
             dy,
             s=150,
-            color="#f1c40f",
+            color="#ffcc00",
             marker="o",
             edgecolors="black",
             linewidth=1,
             ax=ax,
-            label=f"مراوغة ناجحة ({int(dribbles_cnt)})",
+            label=f"Successful Dribble ({int(dribbles_cnt)})",
             zorder=3,
         )
 
-# 4. رسم افتطاع الكرة واستعادتها (Ball Won / Tackles)
+# 4. Ball Recoveries / Tackles
 if show_ball_won:
     tackles_cnt = p_data.get("BallWon Total", 0)
     bx, by = generate_coords(
@@ -180,19 +172,18 @@ if show_ball_won:
             bx,
             by,
             s=160,
-            color="#3498db",
+            color="#00ccff",
             marker="s",
             edgecolors="white",
             linewidth=1,
             ax=ax,
-            label=f"استعادة كرة/افتطاع ({int(tackles_cnt)})",
+            label=f"Ball Recovery ({int(tackles_cnt)})",
             zorder=3,
         )
 
-# 5. رسم العرضيات (Crosses)
+# 5. Successful Crosses
 if show_crosses:
     cross_cnt = p_data.get("Cross Success", 0)
-    # العرضيات تكون غالبًا على أطراف الملعب
     side_y = (5, 25) if random.random() > 0.5 else (55, 75)
     cx, cy = generate_coords(
         cross_cnt, (max(zone["x"][0], 50), 105), side_y
@@ -202,19 +193,19 @@ if show_crosses:
             cx,
             cy,
             s=170,
-            color="#9b59b6",
+            color="#cc66ff",
             marker="^",
             edgecolors="white",
             linewidth=1,
             ax=ax,
-            label=f"عرضية ناجحة ({int(cross_cnt)})",
+            label=f"Successful Cross ({int(cross_cnt)})",
             zorder=4,
         )
 
-# إضافة دليل الألوان والرموز (Legend)
+# Pitch Legend
 ax.legend(
-    facecolor="#2b2b2b",
-    edgecolor="white",
+    facecolor="#1e1e1e",
+    edgecolor="#ffffff",
     fontsize=11,
     labelcolor="white",
     loc="upper left",
@@ -223,34 +214,14 @@ ax.legend(
 st.pyplot(fig)
 
 # ---------------------------------------------------------
-# 4. جدول ملخص الإحصائيات مع الألوان
+# 4. Performance Summary Cards
 # ---------------------------------------------------------
 st.markdown("---")
-st.subheader("📋 تفاصيل إحصائيات الأكشن للاعب")
+st.subheader(f"📊 Action Metrics Summary: {p_data['Full Name']}")
 
-col1, col2, col3, col4, col5 = st.columns(5)
-col1.metric(
-    "⚽ الأهداف",
-    int(p_data.get("GoalsScored Total", 0)),
-    help="رمز نجمة حمراء",
-)
-col2.metric(
-    "🔑 التمريرات الحاسمة",
-    int(p_data.get("Chances Assists", 0)),
-    help="رمز + أخضر",
-)
-col3.metric(
-    "⚡ المراوغات الناجحة",
-    int(p_data.get("Dribble Success", 0)),
-    help="دائرة صفراء",
-)
-col4.metric(
-    "🛡️ استعادة الكرة",
-    int(p_data.get("BallWon Total", 0)),
-    help="مربع أزرق",
-)
-col5.metric(
-    "↗️ العرضيات الناجحة",
-    int(p_data.get("Cross Success", 0)),
-    help="مثلث بنفسجي",
-)
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.metric("⚽ Goals", int(p_data.get("GoalsScored Total", 0)))
+c2.metric("🔑 Key Passes", int(p_data.get("Chances KeyPasses", 0)))
+c3.metric("⚡ Dribbles Won", int(p_data.get("Dribble Success", 0)))
+c4.metric("🛡️ Ball Recoveries", int(p_data.get("BallWon Total", 0)))
+c5.metric("↗️ Crosses Completed", int(p_data.get("Cross Success", 0)))
