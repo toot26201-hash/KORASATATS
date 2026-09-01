@@ -11,7 +11,7 @@ st.set_page_config(
     page_title="Player Passing & Action Map", layout="wide"
 )
 
-st.title("⚽ Football Pass Direction & Action Map")
+st.title("⚽ Football Player Action & Pass Direction Map")
 
 # ---------------------------------------------------------
 # 1. File Upload Section
@@ -79,14 +79,10 @@ zone = position_zones.get(pos, {"x": (40, 80), "y": (20, 60)})
 
 np.random.seed(int(p_data["ID"]))
 
-# Pitch Setup
-pitch = Pitch(
-    pitch_type="statsbomb",
-    pitch_color="#121e17",
-    line_color="#ffffff",
-    stripe=True,
-    stripe_color="#19281f",
-)
+# ---------------------------------------------------------
+# Exact Pitch Requested Configuration
+# ---------------------------------------------------------
+pitch = Pitch(half=False)
 fig, ax = pitch.draw(figsize=(12, 8))
 
 # ---------------------------------------------------------
@@ -101,14 +97,12 @@ if view_mode == "Pass Direction Map (Arrows)":
     pass_total = p_data.get("Pass Total", 0)
     pass_failed = max(0, pass_total - pass_success)
 
-    # Generate Start (x1, y1) & End (x2, y2) coordinates for Successful Passes
+    # Successful Passes (Green Arrows)
     s_cnt = min(int(pass_success), 25)
     if s_cnt > 0:
         sx1 = np.random.uniform(zone["x"][0], zone["x"][1], s_cnt)
         sy1 = np.random.uniform(zone["y"][0], zone["y"][1], s_cnt)
-        sx2 = np.clip(
-            sx1 + np.random.uniform(8, 25, s_cnt), 5, 115
-        )  # Forward progression
+        sx2 = np.clip(sx1 + np.random.uniform(8, 25, s_cnt), 5, 115)
         sy2 = np.clip(sy1 + np.random.uniform(-15, 15, s_cnt), 5, 75)
 
         pitch.arrows(
@@ -116,7 +110,7 @@ if view_mode == "Pass Direction Map (Arrows)":
             sy1,
             sx2,
             sy2,
-            color="#00e676",
+            color="#2ea043",
             width=2,
             headwidth=4,
             headlength=4,
@@ -125,7 +119,7 @@ if view_mode == "Pass Direction Map (Arrows)":
             zorder=4,
         )
 
-    # Generate Start (x1, y1) & End (x2, y2) coordinates for Incomplete Passes
+    # Incomplete Passes (Red Arrows)
     f_cnt = min(int(pass_failed), 12)
     if f_cnt > 0:
         fx1 = np.random.uniform(zone["x"][0], zone["x"][1], f_cnt)
@@ -138,7 +132,7 @@ if view_mode == "Pass Direction Map (Arrows)":
             fy1,
             fx2,
             fy2,
-            color="#ff1744",
+            color="#da3633",
             width=2,
             headwidth=4,
             headlength=4,
@@ -148,10 +142,10 @@ if view_mode == "Pass Direction Map (Arrows)":
         )
 
     ax.legend(
-        facecolor="#1e1e1e",
-        edgecolor="#ffffff",
+        facecolor="#ffffff",
+        edgecolor="#000000",
         fontsize=10,
-        labelcolor="white",
+        labelcolor="black",
         loc="upper left",
     )
     st.pyplot(fig)
@@ -199,18 +193,18 @@ elif view_mode == "Heatmap (Density)":
         hx,
         hy,
         s=15,
-        color="white",
-        alpha=0.3,
+        color="black",
+        alpha=0.4,
         ax=ax,
         zorder=3,
         label="Touch Points",
     )
 
     ax.legend(
-        facecolor="#1e1e1e",
-        edgecolor="#ffffff",
+        facecolor="#ffffff",
+        edgecolor="#000000",
         fontsize=10,
-        labelcolor="white",
+        labelcolor="black",
         loc="upper left",
     )
     st.pyplot(fig)
@@ -234,9 +228,9 @@ else:
             cx,
             cy,
             s=170,
-            color="#d500f9",
+            color="#8a2be2",
             marker="^",
-            edgecolors="white",
+            edgecolors="black",
             linewidth=1,
             ax=ax,
             label=f"Completed Crosses ({int(cross_cnt)})",
@@ -256,7 +250,7 @@ else:
             kx,
             ky,
             s=200,
-            color="#ffab00",
+            color="#ff8c00",
             marker="P",
             edgecolors="black",
             linewidth=1,
@@ -276,7 +270,7 @@ else:
             gx,
             gy,
             s=260,
-            color="#ff1744",
+            color="#e53935",
             marker="*",
             edgecolors="#ffff00",
             linewidth=1.5,
@@ -286,10 +280,10 @@ else:
         )
 
     ax.legend(
-        facecolor="#1e1e1e",
-        edgecolor="#ffffff",
+        facecolor="#ffffff",
+        edgecolor="#000000",
         fontsize=10,
-        labelcolor="white",
+        labelcolor="black",
         loc="upper left",
     )
     st.pyplot(fig)
