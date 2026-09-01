@@ -1,144 +1,115 @@
-import os
 import pandas as pd
-import plotly.express as px
 import streamlit as st
+import matplotlib.pyplot as plt
+from mplsoccer import Pitch, VerticalPitch
 
 # ضبط إعدادات الصفحة
-st.set_page_config(page_title="Players Data Maps", layout="wide")
+st.set_page_config(page_title="Football Pitch Data Maps", layout="wide")
 
-st.title("⚽ لوحة تحليل وتوزيع اللاعبين (Data Maps)")
+st.title("⚽ خريطة أداء وإحصائيات اللاعبين على الملعب (Pitch Map)")
 
 # ---------------------------------------------------------
-# 1. مكان رفع الملفات في القائمة الجانبية (File Uploader)
+# 1. مكان رفع الملفات
 # ---------------------------------------------------------
-st.sidebar.header("📁 رفع بيانات جديد")
-uploaded_file = st.sidebar.file_uploader(
-    "قم برفع ملف البيانات (CSV):", type=["csv"]
-)
-
+st.sidebar.header("📁 بيانات اللاعبين")
+uploaded_file = st.sidebar.file_uploader("قم برفع ملف البيانات (CSV):", type=["csv"])
 
 @st.cache_data
-def load_data_from_file(file):
+def load_data(file):
     return pd.read_csv(file)
 
+if uploaded_file is None:
+    st.info("👋 يرجى رفع ملف البيانات (`PlayersData_2215.csv`) من القائمة الجانبية لبدء التحليل.")
+    st.stop()
 
-# تحديد مصدر البيانات (إما المرفوع الآن أو الملف المرفوع سابقاً على الخادم)
-df = None
-
-if uploaded_file is not None:
-    # استخدام الملف المرفوع من قبل المستخدم
-    df = load_data_from_file(uploaded_file)
-    st.sidebar.success("✅ تم تحميل الملف المرفوع بنجاح!")
-else:
-    # المحاولة الثانية: قراءة الملف الافتراضي من مجلد التطبيق
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    default_file_path = os.path.join(base_dir, "PlayersData_2215.csv")
-
-    if os.path.exists(default_file_path):
-        df = pd.read_csv(default_file_path)
-    else:
-        st.info(
-            "👋 مرحباً بك! يرجى رفع ملف البيانات (`PlayersData_2215.csv`) من القائمة الجانبية لبدء التحليل لعرض الخرائط."
-        )
-        st.stop()
+df = load_data(uploaded_file)
 
 # ---------------------------------------------------------
-# 2. الفلاتر والتحليلات (تعمل تلقائياً عند وجود بيانات)
+# 2. فلاتر اختيار اللاعبين والمؤشرات
 # ---------------------------------------------------------
 st.sidebar.markdown("---")
-st.sidebar.header("🔍 فلترة البيانات")
+st.sidebar.header("🔍 إعدادات الخريطة والتمركؤ")
 
-# اختيار الفرق
-available_teams = sorted(df["Team"].dropna().unique())
-teams = st.sidebar.multiselect(
-    "اختر الفريق:", options=available_teams, default=available_teams[:5]
+# اختيار الفريق واللاعب
+selected_team = st.sidebar.selectbox("اختر الفريق:", sorted(df["Team"].dropna().unique()))
+team_players = df[df["Team"] == selected_team]
+
+selected_player = st.sidebar.selectbox("اختر اللاعب:", sorted(team_players["Full Name"].dropna().unique()))
+player_data = df[df["Full Name"] == selected_player].iloc[0]
+
+# إظهار بطاقة معلومات اللاعب السريعة
+st.sidebar.markdown("---")
+st.sidebar.write(f"**المركز:** {player_data['Primary Position']}")
+st.sidebar.write(f"**رقم القميص:** {player_data['Number']}")
+st.sidebar.write(f"**الدقائق الملعوبة:** {player_data['Admin MinutesPlayed']}")
+
+# ---------------------------------------------------------
+# 3. عرض إحصائيات اللاعب الرئيسية على الملعب التكتيكي
+# ---------------------------------------------------------
+st.subheader(f"📊 الخريطة التكتيكية والإحصائية على الملعب: {player_data['Full Name']}")
+
+# إنشاء تخطيط الملعب باستخدام mplsoccer
+pitch = Pitch(pitch_type='statsbomb', pitch_color='#22312b', line_color='#c7d5cc')
+fig, ax = pitch.draw(figsize=(10, 7))
+
+# تعيين موقع تقديري على الملعب حسب مركز اللاعب الرئيسي (Primary Position)
+pos_coords = {
+    'GK': (10, 40),
+    'CB': (30, 40), 'LCB': (30, 25), 'RCB': (30, 55),
+    'LB': (40, 10), 'RB': (40, 70), 'LWB': (50, 10), 'RWB': (50, 70),
+    'DM': (50, 40), 'CDM': (50, 40),
+    'CM': (65, 40), 'LCM': (65, 25), 'RCM': (65, 55),
+    'AM': (80, 40), 'CAM': (80, 40), 'LM': (75, 15), 'RM': (75, 65),
+    'LW': (95, 15), 'RW': (95, 65),
+    'CF': (105, 40), 'ST': (105, 40)
+}
+
+# الحصول على الإحداثيات التقريبية للمركز
+pos = player_data['Primary Position']
+x, y = pos_coords.get(pos, (60, 40))
+
+# رسم دائرة تمثل مركز اللاعب
+pitch.scatter(x, y, s=600, color='#e74c3c', edgecolors='white', linewidth=2, ax=ax, zorder=3)
+
+# إضافة نص اسم اللاعب وركمه
+ax.text(x, y, str(int(player_data['Number'])), color='white', fontsize=12, ha='center', va='center', fontweight='bold', zorder=4)
+
+# تجهيز نصوص الإحصائيات لعرضها في مناطق الملعب المختلفة
+stat_text = (
+    f"🏆 الأهداف: {player_data.get('GoalsScored Total', 0)}\n"
+    f"🅰️ التمريرات الحاسمة: {player_data.get('Chances Assists', 0)}\n"
+    f"🎯 دقة التمرير: {player_data.get('Pass Accuracy', 0)*100:.1f}%\n"
+    f"⚡ المراوغات الناجحة: {player_data.get('Dribble Success', 0)}\n"
+    f"🛡️ استعادة الكرة: {player_data.get('BallWon Total', 0)}"
 )
 
-# اختيار المراكز
-available_positions = sorted(df["Primary Position"].dropna().unique())
-positions = st.sidebar.multiselect(
-    "اختر المركز الرئيسي:",
-    options=available_positions,
-    default=available_positions,
+# عرض صندوق الإحصائيات على الملعب
+ax.text(
+    x, y - 12, stat_text,
+    color='black', fontsize=11, ha='center', va='top',
+    bbox=dict(boxstyle='round,pad=0.5', facecolor='#ffffff', alpha=0.85, edgecolor='#e74c3c'),
+    zorder=5
 )
 
-# تطبيق الفلترة
-filtered_df = df[
-    (df["Team"].isin(teams)) & (df["Primary Position"].isin(positions))
-]
+st.pyplot(fig)
 
-if filtered_df.empty:
-    st.warning("⚠️ لا توجد بيانات تتطابق مع الخيارات المحددة في الفلتر.")
-else:
-    # ---------------------------------------------------------
-    # Map 1: خريطة توزيع اللاعبين جغرافياً حسب الجنسية (Choropleth Map)
-    # ---------------------------------------------------------
-    st.subheader("🌍 خريطة التوزيع الجغرافي للاعبين (حسب الجنسية)")
+# ---------------------------------------------------------
+# 4. مقارنة خطوط وزوايا الملعب (الخريطة الحرارية للمراكز)
+# ---------------------------------------------------------
+st.markdown("---")
+st.subheader("📌 توزيع إحصائيات الفريق كاملاً على مراكز الملعب")
 
-    # تجميع البيانات حسب الدولة
-    geo_df = (
-        filtered_df.groupby("Nationality")
-        .agg(
-            Total_Players=("ID", "count"),
-            Total_Goals=("GoalsScored Total", "sum"),
-            Total_Assists=("Chances Assists", "sum"),
-        )
-        .reset_index()
-    )
+# عرض خريطة الملعب مع توزيع جميع لاعبي الفريق المختار
+fig2, ax2 = pitch.draw(figsize=(12, 8))
 
-    metric_choice = st.radio(
-        "اختر المؤشر للعرض على الخريطة:",
-        ["Total_Players", "Total_Goals", "Total_Assists"],
-        horizontal=True,
-    )
+for idx, p in team_players.iterrows():
+    p_pos = p['Primary Position']
+    px, py = pos_coords.get(p_pos, (60, 40))
+    
+    # رسم كل لاعب في الفريق
+    pitch.scatter(px, py, s=450, color='#3498db', edgecolors='white', linewidth=1.5, ax=ax2, zorder=3)
+    ax2.text(px, py, str(int(p['Number'])), color='white', fontsize=10, ha='center', va='center', fontweight='bold', zorder=4)
+    ax2.text(px, py + 4, str(p['Nickname'] if pd.notna(p['Nickname']) else p['Full Name'].split()[0]), 
+             color='white', fontsize=9, ha='center', va='bottom', zorder=4)
 
-    fig_map = px.choropleth(
-        geo_df,
-        locations="Nationality",
-        locationmode="country names",
-        color=metric_choice,
-        hover_name="Nationality",
-        color_continuous_scale=px.colors.sequential.Plasma,
-        title=f"توزيع {metric_choice} حسب الجنسية",
-    )
-
-    fig_map.update_layout(margin={"r": 0, "t": 40, "l": 0, "b": 0})
-    st.plotly_chart(fig_map, use_container_width=True)
-
-    # ---------------------------------------------------------
-    # Map 2: خريطة حرارية (Heatmap) لأداء المراكز
-    # ---------------------------------------------------------
-    st.subheader("🔥 الخريطة الحرارية لأداء المراكز (Position Heatmap)")
-
-    metrics_list = [
-        "GoalsScored Total",
-        "Chances Assists",
-        "Pass Accuracy",
-        "BallWon Total",
-        "Defensive Clear",
-    ]
-    heatmap_data = filtered_df.groupby("Primary Position")[metrics_list].mean()
-
-    fig_heat = px.imshow(
-        heatmap_data.T,
-        labels=dict(x="المركز", y="المؤشر", color="المتوسط"),
-        x=heatmap_data.index,
-        y=heatmap_data.columns,
-        aspect="auto",
-        color_continuous_scale="Viridis",
-        text_auto=".1f",
-    )
-
-    st.plotly_chart(fig_heat, use_container_width=True)
-
-    # عرض جدول البيانات المفلترة
-    with st.expander("📄 عرض جدول البيانات"):
-        cols_to_show = [
-            "Full Name",
-            "Team",
-            "Primary Position",
-            "Nationality",
-            "GoalsScored Total",
-            "Chances Assists",
-        ]
-        st.dataframe(filtered_df[cols_to_show])
+st.pyplot(fig2)
