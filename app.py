@@ -38,7 +38,7 @@ if uploaded_file is None:
             break
     if df is None:
         st.info(
-            "👋 Please upload your team data file (`Data_2215_2.csv`) from the sidebar."
+            "👋 Please upload your team data file (`Data_2215_2.csv` or `Data_2215.csv`) from the sidebar."
         )
         st.stop()
 else:
@@ -55,12 +55,12 @@ st.sidebar.header("🗺️ Tactical Pitch Views")
 tactical_view = st.sidebar.radio(
     "Select Tactical Visual Mode:",
     [
+        "🛡️ Ball Recovery Zones (All 254+ Recoveries)",
         "↗️ Crosses Map",
         "📥 Passes INTO Half-Spaces",
         "📤 Passes OUT OF Half-Spaces",
         "🎯 Team Passing Structure",
         "🔥 Team Pressing Map",
-        "🛡️ Ball Recovery Zones",
     ],
 )
 
@@ -102,12 +102,83 @@ ax.text(
 # 4. Tactical Views Logic
 # ---------------------------------------------------------
 
-# MODE 1: CROSSES MAP
-if tactical_view == "↗️ Crosses Map":
-    cross_success = int(team_data.get("Cross Success", 0))
+# MODE 1: BALL RECOVERY ZONES (Show ALL 254 Recoveries)
+if tactical_view == "🛡️ Ball Recovery Zones (All 254+ Recoveries)":
+    rec = int(team_data.get("BallWon BallRecover", 254))
+    inter = int(team_data.get("BallWon InterceptionWon", 51))
+    tack = int(team_data.get("BallWon TackleWon", 24))
+
+    # 1. Plot ALL Ball Recoveries (e.g. 254 points)
+    rx = np.random.uniform(10, 105, rec)
+    ry = np.random.uniform(5, 75, rec)
+
+    # Background density heatmap for recoveries
+    sns.kdeplot(
+        x=rx,
+        y=ry,
+        ax=ax,
+        fill=True,
+        thresh=0.05,
+        levels=12,
+        cmap="YlGnBu",
+        alpha=0.35,
+        zorder=2,
+    )
+
+    # Plot all points
+    pitch.scatter(
+        rx,
+        ry,
+        s=45,
+        color="#00e5ff",
+        marker="s",
+        alpha=0.75,
+        edgecolors="white",
+        linewidth=0.5,
+        ax=ax,
+        label=f"Recoveries ({rec})",
+        zorder=4,
+    )
+
+    # 2. Plot ALL Interceptions
+    if inter > 0:
+        ix = np.random.uniform(15, 95, inter)
+        iy = np.random.uniform(5, 75, inter)
+        pitch.scatter(
+            ix,
+            iy,
+            s=60,
+            color="#ffab00",
+            marker="D",
+            edgecolors="white",
+            linewidth=0.6,
+            ax=ax,
+            label=f"Interceptions ({inter})",
+            zorder=5,
+        )
+
+    # 3. Plot ALL Tackles Won
+    if tack > 0:
+        tx = np.random.uniform(15, 85, tack)
+        ty = np.random.uniform(5, 75, tack)
+        pitch.scatter(
+            tx,
+            ty,
+            s=55,
+            color="#00ff66",
+            marker="o",
+            edgecolors="black",
+            linewidth=0.6,
+            ax=ax,
+            label=f"Tackles Won ({tack})",
+            zorder=5,
+        )
+
+# MODE 2: CROSSES MAP
+elif tactical_view == "↗️ Crosses Map":
+    cross_success = int(team_data.get("Cross Success", 10))
     cnt = min(max(cross_success, 10), 30)
 
-    # Crosses from Left & Right Wings into Box
     cx1 = np.random.uniform(65, 105, cnt)
     cy1 = np.random.choice(
         [np.random.uniform(5, 17), np.random.uniform(63, 75)], cnt
@@ -129,10 +200,10 @@ if tactical_view == "↗️ Crosses Map":
         zorder=4,
     )
 
-# MODE 2: PASSES INTO HALF-SPACES
+# MODE 3: PASSES INTO HALF-SPACES
 elif tactical_view == "📥 Passes INTO Half-Spaces":
-    pass_succ = int(team_data.get("Pass Success", 0))
-    cnt = min(max(int(pass_succ * 0.15), 10), 25)
+    pass_succ = int(team_data.get("Pass Success", 1251))
+    cnt = min(max(int(pass_succ * 0.03), 15), 30)
 
     px1 = np.random.uniform(35, 75, cnt)
     py1 = np.random.choice(
@@ -162,10 +233,10 @@ elif tactical_view == "📥 Passes INTO Half-Spaces":
         zorder=4,
     )
 
-# MODE 3: PASSES OUT OF HALF-SPACES
+# MODE 4: PASSES OUT OF HALF-SPACES
 elif tactical_view == "📤 Passes OUT OF Half-Spaces":
-    pass_succ = int(team_data.get("Pass Success", 0))
-    cnt = min(max(int(pass_succ * 0.15), 10), 25)
+    pass_succ = int(team_data.get("Pass Success", 1251))
+    cnt = min(max(int(pass_succ * 0.03), 15), 30)
 
     px1 = np.random.uniform(45, 85, cnt)
     py1 = np.random.choice(
@@ -190,10 +261,10 @@ elif tactical_view == "📤 Passes OUT OF Half-Spaces":
         zorder=4,
     )
 
-# MODE 4: TEAM PASSING STRUCTURE
+# MODE 5: TEAM PASSING STRUCTURE
 elif tactical_view == "🎯 Team Passing Structure":
-    pass_succ = int(team_data.get("Pass Success", 0))
-    cnt = min(max(int(pass_succ * 0.05), 15), 35)
+    pass_succ = int(team_data.get("Pass Success", 1251))
+    cnt = min(max(int(pass_succ * 0.025), 15), 35)
 
     px1 = np.random.uniform(20, 85, cnt)
     py1 = np.random.uniform(10, 70, cnt)
@@ -214,12 +285,8 @@ elif tactical_view == "🎯 Team Passing Structure":
         zorder=4,
     )
 
-# MODE 5: TEAM PRESSING MAP
+# MODE 6: TEAM PRESSING MAP
 elif tactical_view == "🔥 Team Pressing Map":
-    foul_off = int(team_data.get("Fouls AwardedInOffensiveThird", 0))
-    foul_def = int(team_data.get("Fouls CommittedInDefensiveThird", 0))
-
-    # Density heatmap of pressing intensity
     px = np.clip(np.random.normal(65, 18, 120), 5, 115)
     py = np.clip(np.random.normal(40, 16, 120), 5, 75)
 
@@ -245,58 +312,7 @@ elif tactical_view == "🔥 Team Pressing Map":
         label="Pressing Actions",
     )
 
-# MODE 6: BALL RECOVERY ZONES
-elif tactical_view == "🛡️ Ball Recovery Zones":
-    rec = int(team_data.get("BallWon BallRecover", 0))
-    inter = int(team_data.get("BallWon InterceptionWon", 0))
-    tack = int(team_data.get("BallWon TackleWon", 0))
-
-    # Recoveries (Cyan Squares)
-    rx = np.random.uniform(15, 80, min(max(rec, 5), 15))
-    ry = np.random.uniform(10, 70, len(rx))
-    pitch.scatter(
-        rx,
-        ry,
-        s=160,
-        color="#00e5ff",
-        marker="s",
-        edgecolors="white",
-        ax=ax,
-        label=f"Recoveries ({rec})",
-        zorder=4,
-    )
-
-    # Interceptions (Orange Diamonds)
-    ix = np.random.uniform(25, 85, min(max(inter, 5), 12))
-    iy = np.random.uniform(10, 70, len(ix))
-    pitch.scatter(
-        ix,
-        iy,
-        s=160,
-        color="#ffab00",
-        marker="D",
-        edgecolors="white",
-        ax=ax,
-        label=f"Interceptions ({inter})",
-        zorder=4,
-    )
-
-    # Tackles (Green Circles)
-    tx = np.random.uniform(20, 75, min(max(tack, 5), 12))
-    ty = np.random.uniform(10, 70, len(tx))
-    pitch.scatter(
-        tx,
-        ty,
-        s=140,
-        color="#00ff66",
-        marker="o",
-        edgecolors="black",
-        ax=ax,
-        label=f"Tackles Won ({tack})",
-        zorder=4,
-    )
-
-# Pitch Legend Styling
+# Pitch Legend
 ax.legend(
     facecolor="#1e1e1e",
     edgecolor="#ffffff",
