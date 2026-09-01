@@ -8,30 +8,45 @@ st.set_page_config(page_title="Players Data Maps", layout="wide")
 
 st.title("⚽ لوحة تحليل وتوزيع اللاعبين (Data Maps)")
 
+# ---------------------------------------------------------
+# 1. مكان رفع الملفات في القائمة الجانبية (File Uploader)
+# ---------------------------------------------------------
+st.sidebar.header("📁 رفع بيانات جديد")
+uploaded_file = st.sidebar.file_uploader(
+    "قم برفع ملف البيانات (CSV):", type=["csv"]
+)
 
-# 1. تحميل البيانات بمسار أمان ديناميكي
+
 @st.cache_data
-def load_data():
-    # معرفة مسار المجلد الحالي الذي يوجد فيه ملف app.py
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(base_dir, "PlayersData_2215.csv")
+def load_data_from_file(file):
+    return pd.read_csv(file)
 
-    # التحقق من وجود الملف مع التنبيه في حالة عدم وجوده
-    if not os.path.exists(file_path):
-        st.error(
-            f"❌ لم يتم العثور على ملف البيانات `{file_path}`. "
-            "تأكد من رفع ملف 'PlayersData_2215.csv' في نفس المجلد الذي يحتوي على 'app.py' على GitHub."
+
+# تحديد مصدر البيانات (إما المرفوع الآن أو الملف المرفوع سابقاً على الخادم)
+df = None
+
+if uploaded_file is not None:
+    # استخدام الملف المرفوع من قبل المستخدم
+    df = load_data_from_file(uploaded_file)
+    st.sidebar.success("✅ تم تحميل الملف المرفوع بنجاح!")
+else:
+    # المحاولة الثانية: قراءة الملف الافتراضي من مجلد التطبيق
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    default_file_path = os.path.join(base_dir, "PlayersData_2215.csv")
+
+    if os.path.exists(default_file_path):
+        df = pd.read_csv(default_file_path)
+    else:
+        st.info(
+            "👋 مرحباً بك! يرجى رفع ملف البيانات (`PlayersData_2215.csv`) من القائمة الجانبية لبدء التحليل لعرض الخرائط."
         )
         st.stop()
 
-    return pd.read_csv(file_path)
-
-
-# تحميل البيانات
-df = load_data()
-
-# القائمة الجانبية للتصفية (Sidebar Filters)
-st.sidebar.header("فلترة البيانات")
+# ---------------------------------------------------------
+# 2. الفلاتر والتحليلات (تعمل تلقائياً عند وجود بيانات)
+# ---------------------------------------------------------
+st.sidebar.markdown("---")
+st.sidebar.header("🔍 فلترة البيانات")
 
 # اختيار الفرق
 available_teams = sorted(df["Team"].dropna().unique())
@@ -71,7 +86,11 @@ else:
         .reset_index()
     )
 
-    metric_choice = st.radio("اختر المؤشر للعرض على الخريطة:", ["Total_Players", "Total_Goals", "Total_Assists"], horizontal=True)
+    metric_choice = st.radio(
+        "اختر المؤشر للعرض على الخريطة:",
+        ["Total_Players", "Total_Goals", "Total_Assists"],
+        horizontal=True,
+    )
 
     fig_map = px.choropleth(
         geo_df,
@@ -113,7 +132,7 @@ else:
     st.plotly_chart(fig_heat, use_container_width=True)
 
     # عرض جدول البيانات المفلترة
-    with st.expander("📄 عرض جدول البيانات المفلترة"):
+    with st.expander("📄 عرض جدول البيانات"):
         cols_to_show = [
             "Full Name",
             "Team",
