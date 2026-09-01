@@ -48,19 +48,20 @@ team_data = df.iloc[0]
 team_name = team_data.get("Team Name", "Selected Team")
 
 # ---------------------------------------------------------
-# 2. Tactical Mode Selection Buttons
+# 2. Tactical Mode Selection Buttons (فصل الخريطة الحرارية عن النقاط)
 # ---------------------------------------------------------
 st.sidebar.markdown("---")
 st.sidebar.header("🗺️ Tactical Pitch Views")
 tactical_view = st.sidebar.radio(
     "Select Tactical Visual Mode:",
     [
-        "🛡️ Ball Recovery Zones (All 254+ Recoveries)",
+        "🛡️ Ball Recovery Zones (Points Only)",
+        "🔥 Team Recovery Heatmap (Density Only)",
         "↗️ Crosses Map",
         "📥 Passes INTO Half-Spaces",
         "📤 Passes OUT OF Half-Spaces",
         "🎯 Team Passing Structure",
-        "🔥 Team Pressing Map",
+        "⚡ Team Pressing Map",
     ],
 )
 
@@ -102,37 +103,22 @@ ax.text(
 # 4. Tactical Views Logic
 # ---------------------------------------------------------
 
-# MODE 1: BALL RECOVERY ZONES (Show ALL 254 Recoveries)
-if tactical_view == "🛡️ Ball Recovery Zones (All 254+ Recoveries)":
+# MODE 1: BALL RECOVERY POINTS ONLY (نقاط الـ 254 فقط بدون هيت ماب)
+if tactical_view == "🛡️ Ball Recovery Zones (Points Only)":
     rec = int(team_data.get("BallWon BallRecover", 254))
     inter = int(team_data.get("BallWon InterceptionWon", 51))
     tack = int(team_data.get("BallWon TackleWon", 24))
 
-    # 1. Plot ALL Ball Recoveries (e.g. 254 points)
+    # 1. Recoveries Points (Cyan Squares)
     rx = np.random.uniform(10, 105, rec)
     ry = np.random.uniform(5, 75, rec)
-
-    # Background density heatmap for recoveries
-    sns.kdeplot(
-        x=rx,
-        y=ry,
-        ax=ax,
-        fill=True,
-        thresh=0.05,
-        levels=12,
-        cmap="YlGnBu",
-        alpha=0.35,
-        zorder=2,
-    )
-
-    # Plot all points
     pitch.scatter(
         rx,
         ry,
-        s=45,
+        s=50,
         color="#00e5ff",
         marker="s",
-        alpha=0.75,
+        alpha=0.85,
         edgecolors="white",
         linewidth=0.5,
         ax=ax,
@@ -140,14 +126,14 @@ if tactical_view == "🛡️ Ball Recovery Zones (All 254+ Recoveries)":
         zorder=4,
     )
 
-    # 2. Plot ALL Interceptions
+    # 2. Interceptions Points (Orange Diamonds)
     if inter > 0:
         ix = np.random.uniform(15, 95, inter)
         iy = np.random.uniform(5, 75, inter)
         pitch.scatter(
             ix,
             iy,
-            s=60,
+            s=65,
             color="#ffab00",
             marker="D",
             edgecolors="white",
@@ -157,14 +143,14 @@ if tactical_view == "🛡️ Ball Recovery Zones (All 254+ Recoveries)":
             zorder=5,
         )
 
-    # 3. Plot ALL Tackles Won
+    # 3. Tackles Won Points (Green Circles)
     if tack > 0:
         tx = np.random.uniform(15, 85, tack)
         ty = np.random.uniform(5, 75, tack)
         pitch.scatter(
             tx,
             ty,
-            s=55,
+            s=60,
             color="#00ff66",
             marker="o",
             edgecolors="black",
@@ -174,7 +160,26 @@ if tactical_view == "🛡️ Ball Recovery Zones (All 254+ Recoveries)":
             zorder=5,
         )
 
-# MODE 2: CROSSES MAP
+# MODE 2: TEAM RECOVERY HEATMAP (خريطة حرارية فقط بدون نقاط)
+elif tactical_view == "🔥 Team Recovery Heatmap (Density Only)":
+    rec = int(team_data.get("BallWon BallRecover", 254))
+    rx = np.random.uniform(10, 105, rec)
+    ry = np.random.uniform(5, 75, rec)
+
+    # Pure KDE Density Map for Recoveries
+    sns.kdeplot(
+        x=rx,
+        y=ry,
+        ax=ax,
+        fill=True,
+        thresh=0.05,
+        levels=15,
+        cmap="YlOrRd",
+        alpha=0.75,
+        zorder=2,
+    )
+
+# MODE 3: CROSSES MAP
 elif tactical_view == "↗️ Crosses Map":
     cross_success = int(team_data.get("Cross Success", 10))
     cnt = min(max(cross_success, 10), 30)
@@ -200,7 +205,7 @@ elif tactical_view == "↗️ Crosses Map":
         zorder=4,
     )
 
-# MODE 3: PASSES INTO HALF-SPACES
+# MODE 4: PASSES INTO HALF-SPACES
 elif tactical_view == "📥 Passes INTO Half-Spaces":
     pass_succ = int(team_data.get("Pass Success", 1251))
     cnt = min(max(int(pass_succ * 0.03), 15), 30)
@@ -233,7 +238,7 @@ elif tactical_view == "📥 Passes INTO Half-Spaces":
         zorder=4,
     )
 
-# MODE 4: PASSES OUT OF HALF-SPACES
+# MODE 5: PASSES OUT OF HALF-SPACES
 elif tactical_view == "📤 Passes OUT OF Half-Spaces":
     pass_succ = int(team_data.get("Pass Success", 1251))
     cnt = min(max(int(pass_succ * 0.03), 15), 30)
@@ -261,7 +266,7 @@ elif tactical_view == "📤 Passes OUT OF Half-Spaces":
         zorder=4,
     )
 
-# MODE 5: TEAM PASSING STRUCTURE
+# MODE 6: TEAM PASSING STRUCTURE
 elif tactical_view == "🎯 Team Passing Structure":
     pass_succ = int(team_data.get("Pass Success", 1251))
     cnt = min(max(int(pass_succ * 0.025), 15), 35)
@@ -285,8 +290,8 @@ elif tactical_view == "🎯 Team Passing Structure":
         zorder=4,
     )
 
-# MODE 6: TEAM PRESSING MAP
-elif tactical_view == "🔥 Team Pressing Map":
+# MODE 7: TEAM PRESSING MAP
+elif tactical_view == "⚡ Team Pressing Map":
     px = np.clip(np.random.normal(65, 18, 120), 5, 115)
     py = np.clip(np.random.normal(40, 16, 120), 5, 75)
 
@@ -298,7 +303,7 @@ elif tactical_view == "🔥 Team Pressing Map":
         thresh=0.08,
         levels=15,
         cmap="YlOrRd",
-        alpha=0.6,
+        alpha=0.65,
         zorder=2,
     )
     pitch.scatter(
