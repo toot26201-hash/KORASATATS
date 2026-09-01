@@ -10,7 +10,7 @@ st.set_page_config(
     page_title="Single-Pitch All Events Action Map", layout="wide"
 )
 
-st.title("⚽ Complete Single-Pitch Action Map (All Events Combined)")
+st.title("⚽ Football Player Action Map")
 
 # ---------------------------------------------------------
 # 1. File Upload Section
@@ -96,22 +96,41 @@ zone = position_zones.get(pos, {"x": (40, 80), "y": (20, 60)})
 np.random.seed(int(p_data["ID"]))
 
 # ---------------------------------------------------------
-# 4. Single Pitch All Events Visualization
+# 4. Black Background Pitch Setup with Overlay Player Name
 # ---------------------------------------------------------
-st.subheader(
-    f"📊 All Match Actions on Single Pitch: {p_data['Full Name']} ({pos})"
-)
-
-pitch = Pitch(half=False)
+pitch = Pitch(half=False, pitch_color="#000000", line_color="#ffffff")
 fig, ax = pitch.draw(figsize=(13, 9))
 
-# A. Pass Vectors (Completed vs Incomplete Arrows)
+# Set dark background canvas
+fig.patch.set_facecolor("#000000")
+
+# Render Player Name & Details directly on the pitch surface
+player_name_str = f"{p_data['Full Name'].upper()} ({p_data['Team']}) - {pos}"
+ax.text(
+    60,
+    76,
+    player_name_str,
+    color="#ffffff",
+    fontsize=16,
+    ha="center",
+    va="center",
+    fontweight="bold",
+    zorder=10,
+    bbox=dict(
+        boxstyle="round,pad=0.4",
+        facecolor="#1e1e1e",
+        edgecolor="#ffffff",
+        alpha=0.85,
+    ),
+)
+
+# A. Pass Vectors (Green vs Red Arrows)
 if show_passes:
     pass_success = p_data.get("Pass Success", 0)
     pass_total = p_data.get("Pass Total", 0)
     pass_failed = max(0, pass_total - pass_success)
 
-    # Successful Passes (Green Arrows)
+    # Successful Passes
     s_cnt = min(int(pass_success), 20)
     if s_cnt > 0:
         sx1 = np.random.uniform(zone["x"][0], zone["x"][1], s_cnt)
@@ -124,7 +143,7 @@ if show_passes:
             sy1,
             sx2,
             sy2,
-            color="#2ea043",
+            color="#00ff66",
             width=2,
             headwidth=4,
             headlength=4,
@@ -133,7 +152,7 @@ if show_passes:
             zorder=3,
         )
 
-    # Incomplete Passes (Red Arrows)
+    # Incomplete Passes
     f_cnt = min(int(pass_failed), 10)
     if f_cnt > 0:
         fx1 = np.random.uniform(zone["x"][0], zone["x"][1], f_cnt)
@@ -146,7 +165,7 @@ if show_passes:
             fy1,
             fx2,
             fy2,
-            color="#da3633",
+            color="#ff3333",
             width=2,
             headwidth=4,
             headlength=4,
@@ -167,9 +186,9 @@ if show_crosses:
             cx,
             cy,
             s=160,
-            color="#8a2be2",
+            color="#d500f9",
             marker="^",
-            edgecolors="black",
+            edgecolors="white",
             linewidth=1,
             ax=ax,
             label=f"Completed Cross ({int(cross_cnt)})",
@@ -190,9 +209,9 @@ if show_assists:
             kx,
             ky,
             s=200,
-            color="#ff8c00",
+            color="#ffab00",
             marker="P",
-            edgecolors="black",
+            edgecolors="white",
             linewidth=1,
             ax=ax,
             label=f"Key Pass / Assist ({int(key_passes)})",
@@ -232,9 +251,9 @@ if show_ball_won:
             bx,
             by,
             s=150,
-            color="#00bcd4",
+            color="#00e5ff",
             marker="s",
-            edgecolors="black",
+            edgecolors="white",
             linewidth=1,
             ax=ax,
             label=f"Ball Recovery ({int(tackles_cnt)})",
@@ -255,7 +274,7 @@ if show_clearances:
             cl_x,
             cl_y,
             s=160,
-            color="#78909c",
+            color="#b0bec5",
             marker="D",
             edgecolors="black",
             linewidth=1,
@@ -276,9 +295,9 @@ if show_fouls:
             fx,
             fy,
             s=170,
-            color="#e65100",
+            color="#ff6d00",
             marker="h",
-            edgecolors="black",
+            edgecolors="white",
             linewidth=1,
             ax=ax,
             label=f"Foul Committed ({int(fouls_cnt)})",
@@ -296,22 +315,22 @@ if show_goals:
         pitch.scatter(
             gx,
             gy,
-            s=300,
+            s=320,
             color="#ffd700",
             marker="*",
-            edgecolors="black",
+            edgecolors="white",
             linewidth=1.5,
             ax=ax,
             label=f"Goal Scored ({int(goals_cnt)})",
             zorder=6,
         )
 
-# Display Complete Legend
+# Pitch Legend Styling for Dark Mode
 ax.legend(
-    facecolor="#ffffff",
-    edgecolor="#000000",
+    facecolor="#1e1e1e",
+    edgecolor="#ffffff",
     fontsize=10,
-    labelcolor="black",
+    labelcolor="white",
     loc="upper left",
 )
 st.pyplot(fig)
@@ -337,25 +356,17 @@ with col2:
     st.write(
         f"**Key Passes / Assists:** {int(p_data.get('Chances KeyPasses', 0) + p_data.get('Chances Assists', 0))}"
     )
-    st.write(
-        f"**Crosses Completed:** {int(p_data.get('Cross Success', 0))}"
-    )
-    st.write(
-        f"**Dribbles Won:** {int(p_data.get('Dribble Success', 0))}"
-    )
+    st.write(f"**Crosses Completed:** {int(p_data.get('Cross Success', 0))}")
+    st.write(f"**Dribbles Won:** {int(p_data.get('Dribble Success', 0))}")
 
 with col3:
     st.markdown("### 🛡️ Defensive Work")
     st.write(f"**Ball Recoveries:** {int(p_data.get('BallWon Total', 0))}")
-    st.write(
-        f"**Clearances:** {int(p_data.get('Defensive Clear', 0))}"
-    )
+    st.write(f"**Clearances:** {int(p_data.get('Defensive Clear', 0))}")
     st.write(f"**Blocks:** {int(p_data.get('Defensive Blocks', 0))}")
 
 with col4:
     st.markdown("### ⚠️ Discipline & Cards")
-    st.write(
-        f"**Fouls Committed:** {int(p_data.get('Fouls Committed', 0))}"
-    )
+    st.write(f"**Fouls Committed:** {int(p_data.get('Fouls Committed', 0))}")
     st.write(f"**Yellow Cards:** {int(p_data.get('Cards Yellow', 0))}")
     st.write(f"**Red Cards:** {int(p_data.get('Cards Red', 0))}")
