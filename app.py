@@ -55,12 +55,14 @@ st.sidebar.header("🗺️ Tactical Pitch Views")
 tactical_view = st.sidebar.radio(
     "Select Tactical Visual Mode:",
     [
-        "📥 ALL Passes INTO Half-Spaces",
-        "📤 ALL Passes OUT OF Half-Spaces",
+        "🎯 All Passes Map (كافة التمريرات)",
+        "📐 Short Passes Map (التمريرات القصيرة)",
+        "📏 Long Passes Map (التمريرات الطويلة)",
+        "📥 Passes INTO Half-Spaces",
+        "📤 Passes OUT OF Half-Spaces",
         "↗️ Detailed Crosses Breakdown",
         "🛡️ Ball Recovery Zones (Points Only)",
         "🔥 Team Recovery Heatmap (Density Only)",
-        "🎯 Team Passing Structure",
         "⚡ Team Pressing Map",
     ],
 )
@@ -84,7 +86,7 @@ ax.axhline(62, color="#444444", linestyle="--", linewidth=1.2, zorder=2)
 ax.text(
     60,
     77,
-    f"{team_name.upper()} - {tactical_view.upper()}",
+    f"{team_name.upper()} - {tactical_view.split(' (')[0].upper()}",
     color="#ffffff",
     fontsize=15,
     ha="center",
@@ -103,300 +105,171 @@ ax.text(
 # 4. Tactical Views Logic
 # ---------------------------------------------------------
 
-# MODE 1: ALL PASSES INTO HALF-SPACES (كافة التمريرات الموجهة لأنصاف المساحات)
-if tactical_view == "📥 ALL Passes INTO Half-Spaces":
+# ==========================================
+# PASSING NETWORK MODES (ALL, SHORT, LONG)
+# ==========================================
+
+# MODE 1: ALL PASSES
+if tactical_view == "🎯 All Passes Map (كافة التمريرات)":
+    pass_tot = int(team_data.get("Pass Total", 1545))
     pass_succ = int(team_data.get("Pass Success", 1251))
-    # تمثيل كافة التمريرات الموجهة لأنصاف المساحات (حوالي 15% من التمريرات)
-    total_into_hs = int(pass_succ * 0.15)
+    pass_fail = max(0, pass_tot - pass_succ)
 
-    px1 = np.random.uniform(25, 85, total_into_hs)
-    py1 = np.random.choice(
-        [
-            np.random.uniform(2, 17),  # Left Wing
-            np.random.uniform(31, 49),  # Central / Zone 14
-            np.random.uniform(63, 78),  # Right Wing
-        ],
-        total_into_hs,
-    )
+    # 1. Successful Passes (Green, Transparent)
+    if pass_succ > 0:
+        px1 = np.random.uniform(5, 105, pass_succ)
+        py1 = np.random.uniform(2, 78, pass_succ)
+        px2 = np.clip(px1 + np.random.uniform(-15, 35, pass_succ), 5, 115)
+        py2 = np.clip(py1 + np.random.uniform(-25, 25, pass_succ), 2, 78)
+        
+        pitch.arrows(
+            px1, py1, px2, py2,
+            color="#00ff66", width=1.2, headwidth=2.5, headlength=2.5,
+            alpha=0.25, ax=ax, label=f"Successful Passes ({pass_succ})", zorder=3
+        )
 
-    px2 = np.clip(px1 + np.random.uniform(8, 25, total_into_hs), 5, 115)
-    py2 = np.random.choice(
-        [np.random.uniform(19, 29), np.random.uniform(51, 61)], total_into_hs
-    )
+    # 2. Failed Passes (Red, Transparent)
+    if pass_fail > 0:
+        fx1 = np.random.uniform(10, 105, pass_fail)
+        fy1 = np.random.uniform(5, 75, pass_fail)
+        fx2 = np.clip(fx1 + np.random.uniform(-15, 35, pass_fail), 5, 115)
+        fy2 = np.clip(fy1 + np.random.uniform(-25, 25, pass_fail), 5, 75)
+        
+        pitch.arrows(
+            fx1, fy1, fx2, fy2,
+            color="#ff3333", width=1.2, headwidth=2.5, headlength=2.5,
+            alpha=0.4, ax=ax, label=f"Failed Passes ({pass_fail})", zorder=4
+        )
 
-    pitch.arrows(
-        px1,
-        py1,
-        px2,
-        py2,
-        color="#00ff66",
-        width=1.5,
-        headwidth=3.5,
-        headlength=3.5,
-        alpha=0.6,
-        ax=ax,
-        label=f"All Passes INTO Half-Spaces ({total_into_hs})",
-        zorder=4,
-    )
-
-# MODE 2: ALL PASSES OUT OF HALF-SPACES (كافة التمريرات الخارجة من أنصاف المساحات)
-elif tactical_view == "📤 ALL Passes OUT OF Half-Spaces":
-    pass_succ = int(team_data.get("Pass Success", 1251))
-    # تمثيل كافة التمريرات الخارجة من أنصاف المساحات (حوالي 15% من التمريرات)
-    total_out_hs = int(pass_succ * 0.15)
-
-    px1 = np.random.uniform(35, 90, total_out_hs)
-    py1 = np.random.choice(
-        [np.random.uniform(19, 29), np.random.uniform(51, 61)], total_out_hs
-    )
-
-    px2 = np.clip(px1 + np.random.uniform(8, 25, total_out_hs), 5, 115)
-    py2 = np.random.choice(
-        [
-            np.random.uniform(31, 49),  # To Central / Zone 14
-            np.random.uniform(2, 17),  # To Left Wing
-            np.random.uniform(63, 78),  # To Right Wing
-        ],
-        total_out_hs,
-    )
-
-    pitch.arrows(
-        px1,
-        py1,
-        px2,
-        py2,
-        color="#00e5ff",
-        width=1.5,
-        headwidth=3.5,
-        headlength=3.5,
-        alpha=0.6,
-        ax=ax,
-        label=f"All Passes OUT OF Half-Spaces ({total_out_hs})",
-        zorder=4,
-    )
-
-# MODE 3: DETAILED CROSSES BREAKDOWN
-elif tactical_view == "↗️ Detailed Crosses Breakdown":
-    op_succ = int(team_data.get("OpenPlayCross Success", 4))
-    op_tot = int(team_data.get("OpenPlayCross Total", 20))
-    op_fail = max(0, op_tot - op_succ)
-
-    sp_succ = int(team_data.get("SetPieceCross Success", 6))
-    sp_tot = int(team_data.get("SetPieceCross Total", 14))
+# MODE 2: SHORT PASSES
+elif tactical_view == "📐 Short Passes Map (التمريرات القصيرة)":
+    sp_tot = int(team_data.get("ShortPass Total", 1322))
+    sp_succ = int(team_data.get("ShortPass Success", 1165))
     sp_fail = max(0, sp_tot - sp_succ)
 
-    if op_succ > 0:
-        op_sx1 = np.random.uniform(70, 102, op_succ)
-        op_sy1 = np.random.choice(
-            [np.random.uniform(5, 17), np.random.uniform(63, 75)], op_succ
-        )
-        op_sx2 = np.random.uniform(94, 114, op_succ)
-        op_sy2 = np.random.uniform(22, 58, op_succ)
-        pitch.arrows(
-            op_sx1,
-            op_sy1,
-            op_sx2,
-            op_sy2,
-            color="#00ff66",
-            width=2.5,
-            headwidth=4.5,
-            headlength=4.5,
-            ax=ax,
-            label=f"Open Play Completed ({op_succ})",
-            zorder=5,
-        )
-
-    if op_fail > 0:
-        op_fx1 = np.random.uniform(65, 100, op_fail)
-        op_fy1 = np.random.choice(
-            [np.random.uniform(5, 17), np.random.uniform(63, 75)], op_fail
-        )
-        op_fx2 = np.random.uniform(85, 108, op_fail)
-        op_fy2 = np.random.uniform(10, 70, op_fail)
-        pitch.arrows(
-            op_fx1,
-            op_fy1,
-            op_fx2,
-            op_fy2,
-            color="#ff3333",
-            width=1.8,
-            headwidth=4,
-            headlength=4,
-            alpha=0.7,
-            ax=ax,
-            label=f"Open Play Incomplete ({op_fail})",
-            zorder=3,
-        )
-
     if sp_succ > 0:
-        sp_sx1 = np.random.choice([114, 114, 6, 6], sp_succ)
-        sp_sy1 = np.random.choice([2, 78, 2, 78], sp_succ)
-        sp_sx2 = np.random.uniform(92, 112, sp_succ)
-        sp_sy2 = np.random.uniform(25, 55, sp_succ)
+        px1 = np.random.uniform(10, 100, sp_succ)
+        py1 = np.random.uniform(2, 78, sp_succ)
+        # Short distance trajectory
+        px2 = np.clip(px1 + np.random.uniform(-10, 20, sp_succ), 5, 115)
+        py2 = np.clip(py1 + np.random.uniform(-15, 15, sp_succ), 2, 78)
+        
         pitch.arrows(
-            sp_sx1,
-            sp_sy1,
-            sp_sx2,
-            sp_sy2,
-            color="#d500f9",
-            width=2.5,
-            headwidth=4.5,
-            headlength=4.5,
-            ax=ax,
-            label=f"Set-Piece Completed ({sp_succ})",
-            zorder=5,
+            px1, py1, px2, py2,
+            color="#00e5ff", width=1.2, headwidth=2.5, headlength=2.5,
+            alpha=0.25, ax=ax, label=f"Short Success ({sp_succ})", zorder=3
         )
 
     if sp_fail > 0:
-        sp_fx1 = np.random.choice([114, 114, 6, 6], sp_fail)
-        sp_fy1 = np.random.choice([2, 78, 2, 78], sp_fail)
-        sp_fx2 = np.random.uniform(88, 106, sp_fail)
-        sp_fy2 = np.random.uniform(15, 65, sp_fail)
+        fx1 = np.random.uniform(10, 100, sp_fail)
+        fy1 = np.random.uniform(5, 75, sp_fail)
+        fx2 = np.clip(fx1 + np.random.uniform(-10, 20, sp_fail), 5, 115)
+        fy2 = np.clip(fy1 + np.random.uniform(-15, 15, sp_fail), 5, 75)
+        
         pitch.arrows(
-            sp_fx1,
-            sp_fy1,
-            sp_fx2,
-            sp_fy2,
-            color="#ffab00",
-            width=2,
-            headwidth=4,
-            headlength=4,
-            alpha=0.75,
-            ax=ax,
-            label=f"Set-Piece Incomplete ({sp_fail})",
-            zorder=4,
+            fx1, fy1, fx2, fy2,
+            color="#ff3333", width=1.2, headwidth=2.5, headlength=2.5,
+            alpha=0.5, ax=ax, label=f"Short Failed ({sp_fail})", zorder=4
         )
 
-# MODE 4: BALL RECOVERY POINTS ONLY
+# MODE 3: LONG PASSES
+elif tactical_view == "📏 Long Passes Map (التمريرات الطويلة)":
+    lp_tot = int(team_data.get("LongPass Total", 189))
+    lp_succ = int(team_data.get("LongPass Success", 76))
+    lp_fail = max(0, lp_tot - lp_succ)
+
+    if lp_succ > 0:
+        px1 = np.random.uniform(5, 65, lp_succ)
+        py1 = np.random.uniform(5, 75, lp_succ)
+        # Long distance trajectory (diagonal/forward)
+        px2 = np.clip(px1 + np.random.uniform(35, 70, lp_succ), 5, 115)
+        py2 = np.clip(py1 + np.random.choice([np.random.uniform(20, 50), np.random.uniform(-50, -20)], lp_succ), 2, 78)
+        
+        pitch.arrows(
+            px1, py1, px2, py2,
+            color="#d500f9", width=2, headwidth=4, headlength=4,
+            alpha=0.7, ax=ax, label=f"Long Success ({lp_succ})", zorder=4
+        )
+
+    if lp_fail > 0:
+        fx1 = np.random.uniform(5, 65, lp_fail)
+        fy1 = np.random.uniform(5, 75, lp_fail)
+        fx2 = np.clip(fx1 + np.random.uniform(35, 70, lp_fail), 5, 115)
+        fy2 = np.clip(fy1 + np.random.choice([np.random.uniform(20, 50), np.random.uniform(-50, -20)], lp_fail), 2, 78)
+        
+        pitch.arrows(
+            fx1, fy1, fx2, fy2,
+            color="#ffab00", width=2, headwidth=4, headlength=4,
+            alpha=0.7, ax=ax, label=f"Long Failed ({lp_fail})", zorder=3
+        )
+
+
+# ==========================================
+# HALF-SPACES, CROSSES, RECOVERIES, PRESSING
+# ==========================================
+
+# MODE 4: PASSES INTO HALF-SPACES
+elif tactical_view == "📥 Passes INTO Half-Spaces":
+    pass_succ = int(team_data.get("Pass Success", 1251))
+    total_into_hs = int(pass_succ * 0.15)
+    px1 = np.random.uniform(25, 85, total_into_hs)
+    py1 = np.random.choice([np.random.uniform(2, 17), np.random.uniform(31, 49), np.random.uniform(63, 78)], total_into_hs)
+    px2 = np.clip(px1 + np.random.uniform(8, 25, total_into_hs), 5, 115)
+    py2 = np.random.choice([np.random.uniform(19, 29), np.random.uniform(51, 61)], total_into_hs)
+    pitch.arrows(px1, py1, px2, py2, color="#00ff66", width=1.5, headwidth=3.5, headlength=3.5, alpha=0.6, ax=ax, label=f"Passes INTO Half-Spaces ({total_into_hs})", zorder=4)
+
+# MODE 5: PASSES OUT OF HALF-SPACES
+elif tactical_view == "📤 Passes OUT OF Half-Spaces":
+    pass_succ = int(team_data.get("Pass Success", 1251))
+    total_out_hs = int(pass_succ * 0.15)
+    px1 = np.random.uniform(35, 90, total_out_hs)
+    py1 = np.random.choice([np.random.uniform(19, 29), np.random.uniform(51, 61)], total_out_hs)
+    px2 = np.clip(px1 + np.random.uniform(8, 25, total_out_hs), 5, 115)
+    py2 = np.random.choice([np.random.uniform(31, 49), np.random.uniform(2, 17), np.random.uniform(63, 78)], total_out_hs)
+    pitch.arrows(px1, py1, px2, py2, color="#00e5ff", width=1.5, headwidth=3.5, headlength=3.5, alpha=0.6, ax=ax, label=f"Passes OUT OF Half-Spaces ({total_out_hs})", zorder=4)
+
+# MODE 6: DETAILED CROSSES BREAKDOWN
+elif tactical_view == "↗️ Detailed Crosses Breakdown":
+    op_succ = int(team_data.get("OpenPlayCross Success", 4))
+    op_fail = max(0, int(team_data.get("OpenPlayCross Total", 20)) - op_succ)
+    sp_succ = int(team_data.get("SetPieceCross Success", 6))
+    sp_fail = max(0, int(team_data.get("SetPieceCross Total", 14)) - sp_succ)
+
+    if op_succ > 0:
+        pitch.arrows(np.random.uniform(70, 102, op_succ), np.random.choice([np.random.uniform(5, 17), np.random.uniform(63, 75)], op_succ), np.random.uniform(94, 114, op_succ), np.random.uniform(22, 58, op_succ), color="#00ff66", width=2.5, headwidth=4.5, headlength=4.5, ax=ax, label=f"Open Play Completed ({op_succ})", zorder=5)
+    if op_fail > 0:
+        pitch.arrows(np.random.uniform(65, 100, op_fail), np.random.choice([np.random.uniform(5, 17), np.random.uniform(63, 75)], op_fail), np.random.uniform(85, 108, op_fail), np.random.uniform(10, 70, op_fail), color="#ff3333", width=1.8, headwidth=4, headlength=4, alpha=0.7, ax=ax, label=f"Open Play Incomplete ({op_fail})", zorder=3)
+    if sp_succ > 0:
+        pitch.arrows(np.random.choice([114, 114, 6, 6], sp_succ), np.random.choice([2, 78, 2, 78], sp_succ), np.random.uniform(92, 112, sp_succ), np.random.uniform(25, 55, sp_succ), color="#d500f9", width=2.5, headwidth=4.5, headlength=4.5, ax=ax, label=f"Set-Piece Completed ({sp_succ})", zorder=5)
+    if sp_fail > 0:
+        pitch.arrows(np.random.choice([114, 114, 6, 6], sp_fail), np.random.choice([2, 78, 2, 78], sp_fail), np.random.uniform(88, 106, sp_fail), np.random.uniform(15, 65, sp_fail), color="#ffab00", width=2, headwidth=4, headlength=4, alpha=0.75, ax=ax, label=f"Set-Piece Incomplete ({sp_fail})", zorder=4)
+
+# MODE 7: BALL RECOVERY POINTS ONLY
 elif tactical_view == "🛡️ Ball Recovery Zones (Points Only)":
     rec = int(team_data.get("BallWon BallRecover", 254))
     inter = int(team_data.get("BallWon InterceptionWon", 51))
     tack = int(team_data.get("BallWon TackleWon", 24))
 
-    rx = np.random.uniform(10, 105, rec)
-    ry = np.random.uniform(5, 75, rec)
-    pitch.scatter(
-        rx,
-        ry,
-        s=50,
-        color="#00e5ff",
-        marker="s",
-        alpha=0.85,
-        edgecolors="white",
-        linewidth=0.5,
-        ax=ax,
-        label=f"Recoveries ({rec})",
-        zorder=4,
-    )
-
+    pitch.scatter(np.random.uniform(10, 105, rec), np.random.uniform(5, 75, rec), s=50, color="#00e5ff", marker="s", alpha=0.85, edgecolors="white", linewidth=0.5, ax=ax, label=f"Recoveries ({rec})", zorder=4)
     if inter > 0:
-        ix = np.random.uniform(15, 95, inter)
-        iy = np.random.uniform(5, 75, inter)
-        pitch.scatter(
-            ix,
-            iy,
-            s=65,
-            color="#ffab00",
-            marker="D",
-            edgecolors="white",
-            linewidth=0.6,
-            ax=ax,
-            label=f"Interceptions ({inter})",
-            zorder=5,
-        )
-
+        pitch.scatter(np.random.uniform(15, 95, inter), np.random.uniform(5, 75, inter), s=65, color="#ffab00", marker="D", edgecolors="white", linewidth=0.6, ax=ax, label=f"Interceptions ({inter})", zorder=5)
     if tack > 0:
-        tx = np.random.uniform(15, 85, tack)
-        ty = np.random.uniform(5, 75, tack)
-        pitch.scatter(
-            tx,
-            ty,
-            s=60,
-            color="#00ff66",
-            marker="o",
-            edgecolors="black",
-            linewidth=0.6,
-            ax=ax,
-            label=f"Tackles Won ({tack})",
-            zorder=5,
-        )
+        pitch.scatter(np.random.uniform(15, 85, tack), np.random.uniform(5, 75, tack), s=60, color="#00ff66", marker="o", edgecolors="black", linewidth=0.6, ax=ax, label=f"Tackles Won ({tack})", zorder=5)
 
-# MODE 5: TEAM RECOVERY HEATMAP
+# MODE 8: TEAM RECOVERY HEATMAP
 elif tactical_view == "🔥 Team Recovery Heatmap (Density Only)":
     rec = int(team_data.get("BallWon BallRecover", 254))
-    rx = np.random.uniform(10, 105, rec)
-    ry = np.random.uniform(5, 75, rec)
+    sns.kdeplot(x=np.random.uniform(10, 105, rec), y=np.random.uniform(5, 75, rec), ax=ax, fill=True, thresh=0.05, levels=15, cmap="YlOrRd", alpha=0.75, zorder=2)
 
-    sns.kdeplot(
-        x=rx,
-        y=ry,
-        ax=ax,
-        fill=True,
-        thresh=0.05,
-        levels=15,
-        cmap="YlOrRd",
-        alpha=0.75,
-        zorder=2,
-    )
-
-# MODE 6: TEAM PASSING STRUCTURE
-elif tactical_view == "🎯 Team Passing Structure":
-    pass_succ = int(team_data.get("Pass Success", 1251))
-    px1 = np.random.uniform(20, 85, 100)
-    py1 = np.random.uniform(10, 70, 100)
-    px2 = np.clip(px1 + np.random.uniform(8, 25, 100), 5, 115)
-    py2 = np.clip(py1 + np.random.uniform(-15, 15, 100), 5, 75)
-
-    pitch.arrows(
-        px1,
-        py1,
-        px2,
-        py2,
-        color="#2ea043",
-        width=1.8,
-        headwidth=3.5,
-        headlength=3.5,
-        alpha=0.65,
-        ax=ax,
-        label=f"Team Successful Passes ({pass_succ})",
-        zorder=4,
-    )
-
-# MODE 7: TEAM PRESSING MAP
+# MODE 9: TEAM PRESSING MAP
 elif tactical_view == "⚡ Team Pressing Map":
     px = np.clip(np.random.normal(65, 18, 120), 5, 115)
     py = np.clip(np.random.normal(40, 16, 120), 5, 75)
-
-    sns.kdeplot(
-        x=px,
-        y=py,
-        ax=ax,
-        fill=True,
-        thresh=0.08,
-        levels=15,
-        cmap="YlOrRd",
-        alpha=0.65,
-        zorder=2,
-    )
-    pitch.scatter(
-        px,
-        py,
-        s=20,
-        color="#ffea00",
-        alpha=0.5,
-        ax=ax,
-        zorder=3,
-        label="Pressing Actions",
-    )
+    sns.kdeplot(x=px, y=py, ax=ax, fill=True, thresh=0.08, levels=15, cmap="YlOrRd", alpha=0.65, zorder=2)
+    pitch.scatter(px, py, s=20, color="#ffea00", alpha=0.5, ax=ax, zorder=3, label="Pressing Actions")
 
 # Pitch Legend
-ax.legend(
-    facecolor="#1e1e1e",
-    edgecolor="#ffffff",
-    fontsize=10,
-    labelcolor="white",
-    loc="upper left",
-)
+ax.legend(facecolor="#1e1e1e", edgecolor="#ffffff", fontsize=10, labelcolor="white", loc="upper left")
 st.pyplot(fig)
 
 # ---------------------------------------------------------
@@ -408,37 +281,27 @@ st.subheader(f"📋 {team_name} Quantitative Metrics Summary")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.markdown("### ↗️ Crosses Breakdown")
-    st.write(
-        f"**Open Play Crosses:** {int(team_data.get('OpenPlayCross Success', 4))} / {int(team_data.get('OpenPlayCross Total', 20))}"
-    )
-    st.write(
-        f"**Set-Piece Crosses:** {int(team_data.get('SetPieceCross Success', 6))} / {int(team_data.get('SetPieceCross Total', 14))}"
-    )
-    st.write(f"**Total Crosses:** {int(team_data.get('Cross Total', 34))}")
+    st.markdown("### ⚽ Passing & Crosses")
+    st.write(f"**Total Passes:** {int(team_data.get('Pass Total', 0))} ({int(team_data.get('Pass Success', 0))} Succ.)")
+    st.write(f"**Short Passes:** {int(team_data.get('ShortPass Total', 0))} ({int(team_data.get('ShortPass Success', 0))} Succ.)")
+    st.write(f"**Long Passes:** {int(team_data.get('LongPass Total', 0))} ({int(team_data.get('LongPass Success', 0))} Succ.)")
+    st.write(f"**Pass Accuracy:** {team_data.get('Pass Accuracy', 0)*100:.1f}%")
 
 with col2:
     st.markdown("### 🎯 Possession & Dominance")
-    st.write(
-        f"**Avg Possession:** {team_data.get('Possession_TimePercent Average', 0)*100:.1f}%"
-    )
+    st.write(f"**Avg Possession:** {team_data.get('Possession_TimePercent Average', 0)*100:.1f}%")
     st.write(f"**Offsides:** {int(team_data.get('Admin Offside', 0))}")
     st.write(f"**Corners Won:** {int(team_data.get('Admin Corners', 0))}")
+    st.write(f"**Crosses (Succ/Tot):** {int(team_data.get('Cross Success', 0))} / {int(team_data.get('Cross Total', 0))}")
 
 with col3:
     st.markdown("### 🛡️ Defensive Actions")
-    st.write(
-        f"**Ball Recoveries:** {int(team_data.get('BallWon BallRecover', 0))}"
-    )
-    st.write(
-        f"**Interceptions:** {int(team_data.get('BallWon InterceptionWon', 0))}"
-    )
+    st.write(f"**Ball Recoveries:** {int(team_data.get('BallWon BallRecover', 0))}")
+    st.write(f"**Interceptions:** {int(team_data.get('BallWon InterceptionWon', 0))}")
     st.write(f"**Tackles Won:** {int(team_data.get('BallWon TackleWon', 0))}")
 
 with col4:
     st.markdown("### ⚠️ Fouls & Discipline")
     st.write(f"**Fouls Committed:** {int(team_data.get('Fouls Committed', 0))}")
-    st.write(
-        f"**Fouls in Def Third:** {int(team_data.get('Fouls CommittedInDefensiveThird', 0))}"
-    )
+    st.write(f"**Fouls in Def Third:** {int(team_data.get('Fouls CommittedInDefensiveThird', 0))}")
     st.write(f"**Yellow Cards:** {int(team_data.get('Cards Yellow', 0))}")
