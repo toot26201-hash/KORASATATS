@@ -2,20 +2,21 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import streamlit as st
 from mplsoccer import Pitch
 
 # Page Configuration
 st.set_page_config(
-    page_title="Player Action Maps | Match Analytics", layout="wide"
+    page_title="Player Performance & Heatmap Analytics", layout="wide"
 )
 
-st.title("⚽ Football Player Action Map & Pitch Analytics")
+st.title("⚽ Advanced Pitch Analytics & Heatmap Visualization")
 
 # ---------------------------------------------------------
 # 1. File Upload Section
 # ---------------------------------------------------------
-st.sidebar.header("📁 Data Upload")
+st.sidebar.header("📁 Data Source")
 uploaded_file = st.sidebar.file_uploader(
     "Upload Players CSV File:", type=["csv"]
 )
@@ -28,14 +29,14 @@ def load_data(file):
 
 if uploaded_file is None:
     st.info(
-        "👋 Please upload your data file (`PlayersData_2215.csv`) from the sidebar to start displaying action maps."
+        "👋 Please upload your data file (`PlayersData_2215.csv`) from the sidebar to view pitch actions and heatmaps."
     )
     st.stop()
 
 df = load_data(uploaded_file)
 
 # ---------------------------------------------------------
-# 2. Player Selection & Filters
+# 2. Player Selection & Controls
 # ---------------------------------------------------------
 selected_team = st.sidebar.selectbox(
     "Select Team:", sorted(df["Team"].dropna().unique())
@@ -48,14 +49,11 @@ selected_player = st.sidebar.selectbox(
 p_data = df[df["Full Name"] == selected_player].iloc[0]
 
 st.sidebar.markdown("---")
-st.sidebar.header("🎨 Action Filters")
-
-# Toggle individual actions on the pitch
-show_goals = st.sidebar.checkbox("⚽ Goals", value=True)
-show_assists = st.sidebar.checkbox("🔑 Key Passes / Assists", value=True)
-show_dribbles = st.sidebar.checkbox("⚡ Successful Dribbles", value=True)
-show_ball_won = st.sidebar.checkbox("🛡️ Ball Recoveries / Tackles", value=True)
-show_crosses = st.sidebar.checkbox("↗️ Successful Crosses", value=True)
+st.sidebar.header("🎨 Pitch Visual Mode")
+view_mode = st.sidebar.radio(
+    "Select Pitch Map Type:",
+    ["Action Map (Markers)", "Heatmap (Density)"],
+)
 
 # ---------------------------------------------------------
 # 3. Position Pitch Mapping
@@ -82,16 +80,16 @@ zone = position_zones.get(pos, {"x": (40, 80), "y": (20, 60)})
 np.random.seed(int(p_data["ID"]))
 
 
-def generate_coords(count, x_range, y_range):
+def generate_coords(count, x_range, y_range, max_display=35):
     if count <= 0 or pd.isna(count):
-        return [], []
-    display_count = min(int(count), 30)
+        return np.array([]), np.array([])
+    display_count = min(int(count), max_display)
     xs = np.random.uniform(x_range[0], x_range[1], display_count)
     ys = np.random.uniform(y_range[0], y_range[1], display_count)
     return xs, ys
 
 
-# Pitch Visual Setup
+# Pitch Setup
 pitch = Pitch(
     pitch_type="statsbomb",
     pitch_color="#121e17",
@@ -101,127 +99,224 @@ pitch = Pitch(
 )
 fig, ax = pitch.draw(figsize=(12, 8))
 
-# 1. Goals
-if show_goals:
-    goals_cnt = p_data.get("GoalsScored Total", 0)
-    gx, gy = generate_coords(
-        goals_cnt, (max(zone["x"][0], 88), 116), (25, 55)
-    )
-    if len(gx) > 0:
-        pitch.scatter(
-            gx,
-            gy,
-            s=250,
-            color="#ff3333",
-            marker="*",
-            edgecolors="#ffff00",
-            linewidth=1.5,
-            ax=ax,
-            label=f"Goal ({int(goals_cnt)})",
-            zorder=5,
-        )
+# ---------------------------------------------------------
+# MODE 1: HEATMAP
+# ---------------------------------------------------------
+if view_mode == "Heatmap (Density)":
+    st.subheader(f"🔥 Position Heatmap: {p_data['Full Name']} ({pos})")
 
-# 2. Key Passes / Assists
-if show_assists:
-    key_passes = p_data.get("Chances KeyPasses", 0) + p_data.get(
-        "Chances Assists", 0
+    # Generate synthetic activity cloud around player's operational field zone
+    total_actions = int(
+        p_data.get("Pass Total", 0)
+        + p_data.get("Dribble Total", 0)
+        + p_data.get("BallWon Total", 0)
     )
-    ax_x, ax_y = generate_coords(
-        key_passes, (zone["x"][0], min(zone["x"][1] + 10, 110)), zone["y"]
-    )
-    if len(ax_x) > 0:
-        pitch.scatter(
-            ax_x,
-            ax_y,
-            s=180,
-            color="#00ff66",
-            marker="P",
-            edgecolors="white",
-            linewidth=1,
-            ax=ax,
-            label=f"Key Pass / Assist ({int(key_passes)})",
-            zorder=4,
-        )
+    sample_size = max(min(total_actions, 150), 40)
 
-# 3. Successful Dribbles
-if show_dribbles:
-    dribbles_cnt = p_data.get("Dribble Success", 0)
-    dx, dy = generate_coords(dribbles_cnt, zone["x"], zone["y"])
-    if len(dx) > 0:
+    hx = np.random.normal(
+        loc=(zone["x"][0] + zone["x"][1]) / 2, scale=12, size=sample_size
+    )
+    hy = np.random.normal(
+        loc=(zone["y"][0] + zone["y"][1]) / 2, scale=10, size=sample_size
+    )
+
+    # Clip coordinates to pitch dimensions
+    hx = np.clip(hx, 2, 118)
+    hy = np.clip(hy, 2, 78)
+
+    sns.kdeplot(
+        x=hx,
+        y=hy,
+        ax=ax,
+        fill=True,
+        thresh=0.05,
+        levels=15,
+        cmap="YlOrRd",
+        alpha=0.6,
+        zorder=2,
+    )
+    pitch.scatter(
+        hx,
+        hy,
+        s=15,
+        color="white",
+        alpha=0.3,
+        ax=ax,
+        zorder=3,
+        label="Touch Points",
+    )
+
+    ax.legend(
+        facecolor="#1e1e1e",
+        edgecolor="#ffffff",
+        fontsize=10,
+        labelcolor="white",
+        loc="upper left",
+    )
+    st.pyplot(fig)
+
+# ---------------------------------------------------------
+# MODE 2: ACTION MARKERS MAP
+# ---------------------------------------------------------
+else:
+    st.subheader(
+        f"⚽ Action Map (Passes, Crosses & Shots): {p_data['Full Name']}"
+    )
+
+    # 1. Successful Passes (Short / Long)
+    short_pass = p_data.get("ShortPass Success", 0)
+    long_pass = p_data.get("LongPass Success", 0)
+    px, py = generate_coords(short_pass + long_pass, zone["x"], zone["y"], 30)
+    if len(px) > 0:
         pitch.scatter(
-            dx,
-            dy,
-            s=150,
-            color="#ffcc00",
+            px,
+            py,
+            s=120,
+            color="#00e676",
             marker="o",
             edgecolors="black",
-            linewidth=1,
+            linewidth=0.8,
             ax=ax,
-            label=f"Successful Dribble ({int(dribbles_cnt)})",
+            label=f"Completed Passes ({int(short_pass + long_pass)})",
             zorder=3,
         )
 
-# 4. Ball Recoveries / Tackles
-if show_ball_won:
-    tackles_cnt = p_data.get("BallWon Total", 0)
-    bx, by = generate_coords(
-        tackles_cnt, (max(zone["x"][0] - 15, 5), zone["x"][1]), zone["y"]
-    )
-    if len(bx) > 0:
-        pitch.scatter(
-            bx,
-            by,
-            s=160,
-            color="#00ccff",
-            marker="s",
-            edgecolors="white",
-            linewidth=1,
-            ax=ax,
-            label=f"Ball Recovery ({int(tackles_cnt)})",
-            zorder=3,
-        )
-
-# 5. Successful Crosses
-if show_crosses:
+    # 2. Successful Crosses
     cross_cnt = p_data.get("Cross Success", 0)
     side_y = (5, 25) if random.random() > 0.5 else (55, 75)
-    cx, cy = generate_coords(
-        cross_cnt, (max(zone["x"][0], 50), 105), side_y
-    )
+    cx, cy = generate_coords(cross_cnt, (max(zone["x"][0], 50), 105), side_y, 20)
     if len(cx) > 0:
         pitch.scatter(
             cx,
             cy,
             s=170,
-            color="#cc66ff",
+            color="#d500f9",
             marker="^",
             edgecolors="white",
             linewidth=1,
             ax=ax,
-            label=f"Successful Cross ({int(cross_cnt)})",
+            label=f"Completed Crosses ({int(cross_cnt)})",
             zorder=4,
         )
 
-# Pitch Legend
-ax.legend(
-    facecolor="#1e1e1e",
-    edgecolor="#ffffff",
-    fontsize=11,
-    labelcolor="white",
-    loc="upper left",
-)
+    # 3. Key Passes & Assists
+    key_passes = p_data.get("Chances KeyPasses", 0) + p_data.get(
+        "Chances Assists", 0
+    )
+    k_x, k_y = generate_coords(
+        key_passes, (zone["x"][0], min(zone["x"][1] + 10, 110)), zone["y"], 15
+    )
+    if len(k_x) > 0:
+        pitch.scatter(
+            k_x,
+            k_y,
+            s=200,
+            color="#ffab00",
+            marker="P",
+            edgecolors="black",
+            linewidth=1,
+            ax=ax,
+            label=f"Key Passes / Assists ({int(key_passes)})",
+            zorder=5,
+        )
 
-st.pyplot(fig)
+    # 4. Ball Recoveries
+    tackles_cnt = p_data.get("BallWon Total", 0)
+    bx, by = generate_coords(
+        tackles_cnt,
+        (max(zone["x"][0] - 15, 5), zone["x"][1]),
+        zone["y"],
+        20,
+    )
+    if len(bx) > 0:
+        pitch.scatter(
+            bx,
+            by,
+            s=140,
+            color="#00b0ff",
+            marker="s",
+            edgecolors="white",
+            linewidth=1,
+            ax=ax,
+            label=f"Ball Recoveries ({int(tackles_cnt)})",
+            zorder=3,
+        )
+
+    # 5. Goals
+    goals_cnt = p_data.get("GoalsScored Total", 0)
+    gx, gy = generate_coords(
+        goals_cnt, (max(zone["x"][0], 88), 116), (25, 55), 10
+    )
+    if len(gx) > 0:
+        pitch.scatter(
+            gx,
+            gy,
+            s=260,
+            color="#ff1744",
+            marker="*",
+            edgecolors="#ffff00",
+            linewidth=1.5,
+            ax=ax,
+            label=f"Goals ({int(goals_cnt)})",
+            zorder=6,
+        )
+
+    ax.legend(
+        facecolor="#1e1e1e",
+        edgecolor="#ffffff",
+        fontsize=10,
+        labelcolor="white",
+        loc="upper left",
+    )
+    st.pyplot(fig)
 
 # ---------------------------------------------------------
-# 4. Performance Summary Cards
+# 4. Detailed Passing & Crossing Statistics Grid
 # ---------------------------------------------------------
 st.markdown("---")
-st.subheader(f"📊 Action Metrics Summary: {p_data['Full Name']}")
+st.subheader("📋 Complete Passing & Crossing Breakdown")
 
-c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("⚽ Goals", int(p_data.get("GoalsScored Total", 0)))
-c2.metric("🔑 Key Passes", int(p_data.get("Chances KeyPasses", 0)))
-c3.metric("⚡ Dribbles Won", int(p_data.get("Dribble Success", 0)))
-c4.metric("🛡️ Ball Recoveries", int(p_data.get("BallWon Total", 0)))
-c5.metric("↗️ Crosses Completed", int(p_data.get("Cross Success", 0)))
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.markdown("### ⚽ Passes Overview")
+    st.write(f"**Total Passes:** {int(p_data.get('Pass Total', 0))}")
+    st.write(f"**Passes Completed:** {int(p_data.get('Pass Success', 0))}")
+    st.write(f"**Pass Accuracy:** {p_data.get('Pass Accuracy', 0)*100:.1f}%")
+
+with col2:
+    st.markdown("### 📐 Short vs Long Passes")
+    st.write(
+        f"**Short Pass Completed:** {int(p_data.get('ShortPass Success', 0))} / {int(p_data.get('ShortPass Total', 0))}"
+    )
+    st.write(
+        f"**Short Pass Accuracy:** {p_data.get('ShortPass Accuracy', 0)*100:.1f}%"
+    )
+    st.write(
+        f"**Long Pass Completed:** {int(p_data.get('LongPass Success', 0))} / {int(p_data.get('LongPass Total', 0))}"
+    )
+    st.write(
+        f"**Long Pass Accuracy:** {p_data.get('LongPass Accuracy', 0)*100:.1f}%"
+    )
+
+with col3:
+    st.markdown("### ↗️ Crosses Analytics")
+    st.write(
+        f"**Total Crosses:** {int(p_data.get('Cross Total', 0))}"
+    )
+    st.write(
+        f"**Crosses Completed:** {int(p_data.get('Cross Success', 0))}"
+    )
+    st.write(
+        f"**Cross Accuracy:** {p_data.get('Cross Accuracy', 0)*100:.1f}%"
+    )
+
+with col4:
+    st.markdown("### 🎯 Play Types & Key Passes")
+    st.write(
+        f"**Open Play Crosses:** {int(p_data.get('OpenPlayCross Success', 0))}"
+    )
+    st.write(
+        f"**Set Piece Crosses:** {int(p_data.get('SetPieceCross Success', 0))}"
+    )
+    st.write(f"**Key Passes Created:** {int(p_data.get('Chances KeyPasses', 0))}")
