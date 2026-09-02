@@ -2,13 +2,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mplsoccer import Pitch
 
-# 1. إعداد الملعب الخلفية السوداء
+# 1. إعداد الملعب بالخلفية السوداء
 pitch = Pitch(half=False, pitch_color='#000000', line_color='#ffffff')
-fig, ax = pitch.draw(figsize=(13, 9))
+fig, ax = pitch.draw(figsize=(14, 9.5))
 fig.patch.set_facecolor('#000000')
 
 # ---------------------------------------------------------
-# 2. بيانات الأفعال التكتيكية (إحداثيات يوسف أسامة نبيه)
+# 2. بيانات التمريرات والعرضيات واستعادة الكرة
 # ---------------------------------------------------------
 
 # التمريرات الناجحة (Completed Pass - 11)
@@ -107,7 +107,7 @@ pitch.scatter(
     zorder=5,
 )
 
-# خطا مرتكب (Foul Committed - 1)
+# خطأ مرتكب (Foul Committed - 1)
 pitch.scatter(
     [90],
     [18],
@@ -122,7 +122,7 @@ pitch.scatter(
 )
 
 # ---------------------------------------------------------
-# 3. إضافة الالتحامات الأرضية والهوائية (Ground & Aerial Duels)
+# 3. الالتحامات الأرضية والهوائية (Ground & Aerial Duels)
 # ---------------------------------------------------------
 
 # التحام أرضي ناجح (Ground Duel Won - 3)
@@ -167,43 +167,88 @@ pitch.scatter(
     zorder=5,
 )
 
-# التحام هوائي مخفق (Aerial Duel Lost - 1)
+# ---------------------------------------------------------
+# 4. التسديدات الهجومية وقيم الأهداف المتوقعة (Shots & xG)
+# ---------------------------------------------------------
+
+# تسديدة مسجلة هدف (Goal - 1) [xG: 0.32]
+goal_x, goal_y, goal_xg = 104, 38, 0.32
 pitch.scatter(
-    [91],
-    [36],
-    s=150,
-    color='#ff9100',
-    marker='X',
-    linewidth=1.8,
+    [goal_x],
+    [goal_y],
+    s=380,
+    color='#ffd700',
+    marker='*',
+    edgecolors='white',
+    linewidth=1.5,
     ax=ax,
-    label='Aerial Duel Lost (1)',
-    zorder=5,
+    label=f'Goal (xG: {goal_xg})',
+    zorder=7,
+)
+ax.text(
+    goal_x,
+    goal_y - 4,
+    f'Goal ({goal_xg} xG)',
+    color='#ffd700',
+    fontsize=9,
+    ha='center',
+    fontweight='bold',
+    zorder=8,
+)
+
+# تسديدة بين القائمين والعارضة (Shot On Target - 1) [xG: 0.14]
+shot_on_x, shot_on_y, shot_on_xg = 96, 26, 0.14
+pitch.scatter(
+    [shot_on_x],
+    [shot_on_y],
+    s=180,
+    color='#00ff66',
+    marker='o',
+    edgecolors='black',
+    linewidth=1,
+    ax=ax,
+    label=f'Shot On Target (xG: {shot_on_xg})',
+    zorder=6,
+)
+
+# تسديدة خارج المرمى (Shot Off Target - 1) [xG: 0.06]
+shot_off_x, shot_off_y, shot_off_xg = 88, 52, 0.06
+pitch.scatter(
+    [shot_off_x],
+    [shot_off_y],
+    s=150,
+    color='#ff1744',
+    marker='x',
+    linewidth=2,
+    ax=ax,
+    label=f'Shot Off Target (xG: {shot_off_xg})',
+    zorder=6,
 )
 
 # ---------------------------------------------------------
-# 4. العناوين والـ Legend
+# 5. الشارات والـ Legend
 # ---------------------------------------------------------
 
-# شارة الاسم والمركز بأسفل الملعب
+# شارة التلخيص والبطاقة بأسفل الملعب
 ax.text(
     60,
     92,
-    'YOUSSEF OSAMA NABIH (Al Mosul SC) - LW',
+    'YOUSSEF OSAMA NABIH (Al Mosul SC) - LW\nTotal xG: 0.52 | Goals: 1 | Key Passes: 1 | Duels Won: 5/8',
     color='#ffffff',
-    fontsize=14,
+    fontsize=13,
     ha='center',
     va='center',
     fontweight='bold',
     bbox=dict(
-        boxstyle='round,pad=0.5', facecolor='#111111', edgecolor='#ffffff', alpha=0.9
+        boxstyle='round,pad=0.6', facecolor='#111111', edgecolor='#00ff66', alpha=0.95
     ),
 )
 
-# الـ Legend في أعلى اليسار
+# قائمة الرموز Legend في أعلى اليسار
 ax.legend(
     facecolor='#000000',
     edgecolor='#ffffff',
-    fontsize=9.5,
+    fontsize=9,
     labelcolor='white',
     loc='upper left',
     framealpha=0.85,
