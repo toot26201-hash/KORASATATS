@@ -1,4 +1,4 @@
-import os
+import random
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -8,16 +8,18 @@ from mplsoccer import Pitch
 
 # Page Configuration
 st.set_page_config(
-    page_title="Team Tactical & Spatial Analytics", layout="wide"
+    page_title="Football Player Action & Heatmap Analytics", layout="wide"
 )
 
-st.title("⚽ Team Tactical & Spatial Analytics Dashboard")
+st.title("⚽ Football Player Pitch Analytics")
 
 # ---------------------------------------------------------
-# 1. Sidebar File Uploader
+# 1. File Upload Section
 # ---------------------------------------------------------
 st.sidebar.header("📁 Data Source")
-uploaded_file = st.sidebar.file_uploader("Upload CSV File:", type=["csv"])
+uploaded_file = st.sidebar.file_uploader(
+    "Upload Players CSV File:", type=["csv"]
+)
 
 
 @st.cache_data
@@ -25,86 +27,108 @@ def load_data(file):
     return pd.read_csv(file)
 
 
-df = None
 if uploaded_file is None:
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    default_paths = [
-        os.path.join(base_dir, "Data_2215_2.csv"),
-        os.path.join(base_dir, "Data_2215.csv"),
-    ]
-    for path in default_paths:
-        if os.path.exists(path):
-            df = pd.read_csv(path)
-            break
-    if df is None:
-        st.info(
-            "👋 Please upload your team data file (`Data_2215_2.csv` or `Data_2215.csv`) from the sidebar."
-        )
-        st.stop()
-else:
-    df = load_data(uploaded_file)
+    st.info(
+        "👋 Please upload your data file (`PlayersData_2215.csv`) from the sidebar to display the pitch maps."
+    )
+    st.stop()
 
-team_data = df.iloc[0]
-team_name = team_data.get("Team Name", "Selected Team")
+df = load_data(uploaded_file)
 
 # ---------------------------------------------------------
-# 2. Tactical Mode Selection Buttons
+# 2. Player Selection
+# ---------------------------------------------------------
+selected_team = st.sidebar.selectbox(
+    "Select Team:", sorted(df["Team"].dropna().unique())
+)
+team_players = df[df["Team"] == selected_team]
+
+selected_player = st.sidebar.selectbox(
+    "Select Player:", sorted(team_players["Full Name"].dropna().unique())
+)
+p_data = df[df["Full Name"] == selected_player].iloc[0]
+
+# ---------------------------------------------------------
+# 3. Main Mode Switcher (زر اختيار مستقل لنوع الخريطة)
 # ---------------------------------------------------------
 st.sidebar.markdown("---")
-st.sidebar.header("🗺️ Tactical Pitch Views")
-tactical_view = st.sidebar.radio(
-    "Select Tactical Visual Mode:",
-    [
-        "🧤 Goalkeeper Distribution Map (تمريرات حارس المرمى)",
-        "📍 Average Player Positions Map (متوسط تمركز أفراد الفريق)",
-        "📊 5 Vertical Channels Attacks & Attempts (المحاولات في القنوات الخمس)",
-        "🚀 Final Third Entries Map (طرق دخول الثلث الأخير)",
-        "📥 Penalty Area Entries Map (طرق دخول منطقة الجزاء)",
-        "🔑 Key Passes & Assists Map (التمريرات المفتاحية والحاسمة)",
-        "✨ Offensive Dribbles Map (المراوغات الهجومية - 37)",
-        "⚔️ Aerial Duels Map (الالتحامات الهوائية)",
-        "🤼 Ground Duels Map (الالتحامات الأرضية)",
-        "⚽ Team Shots Map (تسديدات الفريق الهجومية - 42)",
-        "🛡️ Opponent Shots Conceded (التسديدات المستقبلة من المنافسين)",
-        "🎯 All Passes Map (ALL 1545 Passes)",
-        "📐 Short Passes Map (ALL 1322 Short Passes)",
-        "📏 Long Passes Map (ALL 189 Long Passes)",
-        "🚩 Set-Piece & Corner Crosses (الركنيات والضربات الثابتة)",
-        "🌐 ALL Crosses Combined (كافة العرضيات مجتمعة)",
-        "↗️ Open Play Crosses (عرضيات اللعب المفتوح)",
-        "📥 ALL Passes INTO Half-Spaces",
-        "📤 ALL Passes OUT OF Half-Spaces",
-        "🛡️ Ball Recovery Zones (254 Recoveries + 51 Interceptions)",
-        "🔥 Team Recovery Heatmap (Density Only)",
-        "⚡ Team Pressing Map",
-    ],
+st.sidebar.header("🗺️ Pitch View Mode")
+pitch_mode = st.sidebar.radio(
+    "Choose Visualization Type:",
+    ["Action Map Only", "Heatmap Only", "Combined Overlay"],
 )
 
-np.random.seed(42)
+# Individual Event Toggles (Only visible when Action Map or Combined is selected)
+if pitch_mode in ["Action Map Only", "Combined Overlay"]:
+    st.sidebar.markdown("---")
+    st.sidebar.header("🎨 Toggle Visible Events")
+    show_passes = st.sidebar.checkbox(
+        "🎯 Passes (Green / Red Arrows)", value=True
+    )
+    show_goals = st.sidebar.checkbox("⚽ Goals (Gold Star)", value=True)
+    show_assists = st.sidebar.checkbox(
+        "🔑 Key Passes & Assists (Orange Plus)", value=True
+    )
+    show_crosses = st.sidebar.checkbox(
+        "↗️ Successful Crosses (Purple Triangle)", value=True
+    )
+    show_dribbles = st.sidebar.checkbox(
+        "⚡ Successful Dribbles (Yellow Circle)", value=True
+    )
+    show_ball_won = st.sidebar.checkbox(
+        "🛡️ Recoveries & Tackles (Cyan Square)", value=True
+    )
+    show_clearances = st.sidebar.checkbox(
+        "🧱 Clearances & Blocks (Gray Diamond)", value=True
+    )
+    show_fouls = st.sidebar.checkbox(
+        "⚠️ Fouls & Cards (Red Hexagons)", value=True
+    )
+else:
+    show_passes = show_goals = show_assists = show_crosses = False
+    show_dribbles = show_ball_won = show_clearances = show_fouls = False
 
 # ---------------------------------------------------------
-# 3. Pitch Setup (Black Background & Half-Spaces Lines)
+# 4. Position Pitch Mapping Setup
+# ---------------------------------------------------------
+position_zones = {
+    "GK": {"x": (5, 20), "y": (25, 55)},
+    "CB": {"x": (20, 45), "y": (20, 60)},
+    "LB": {"x": (25, 65), "y": (5, 25)},
+    "RB": {"x": (25, 65), "y": (55, 75)},
+    "DM": {"x": (35, 60), "y": (25, 55)},
+    "CM": {"x": (45, 75), "y": (20, 60)},
+    "LM": {"x": (50, 90), "y": (5, 25)},
+    "RM": {"x": (50, 90), "y": (55, 75)},
+    "AM": {"x": (65, 95), "y": (20, 60)},
+    "LW": {"x": (70, 110), "y": (5, 30)},
+    "RW": {"x": (70, 110), "y": (50, 75)},
+    "CF": {"x": (80, 112), "y": (20, 60)},
+    "ST": {"x": (80, 112), "y": (20, 60)},
+}
+
+pos = p_data.get("Primary Position", "CM")
+zone = position_zones.get(pos, {"x": (40, 80), "y": (20, 60)})
+
+np.random.seed(int(p_data["ID"]))
+
+# ---------------------------------------------------------
+# 5. Black Background Pitch Setup with Overlay Player Name
 # ---------------------------------------------------------
 pitch = Pitch(half=False, pitch_color="#000000", line_color="#ffffff")
 fig, ax = pitch.draw(figsize=(13, 9))
+
+# Set dark background canvas
 fig.patch.set_facecolor("#000000")
 
-# Demarcate 5 Vertical Channels (Half-Spaces Y: 18..30 & 50..62)
-ax.axhline(18, color="#00e5ff", linestyle="--", linewidth=1.2, zorder=2)
-ax.axhline(30, color="#00e5ff", linestyle="--", linewidth=1.2, zorder=2)
-ax.axhline(50, color="#00e5ff", linestyle="--", linewidth=1.2, zorder=2)
-ax.axhline(62, color="#00e5ff", linestyle="--", linewidth=1.2, zorder=2)
-
-# Demarcate Final Third Boundary (X = 80)
-ax.axvline(80, color="#ffea00", linestyle=":", linewidth=1.5, zorder=2)
-
-# Header Title Badge
+# Render Player Name & Details directly on top of the pitch
+player_name_str = f"{p_data['Full Name'].upper()} ({p_data['Team']}) - {pos}"
 ax.text(
     60,
-    77,
-    f"{team_name.upper()} - {tactical_view.split(' (')[0].upper()}",
+    76,
+    player_name_str,
     color="#ffffff",
-    fontsize=15,
+    fontsize=16,
     ha="center",
     va="center",
     fontweight="bold",
@@ -112,781 +136,261 @@ ax.text(
     bbox=dict(
         boxstyle="round,pad=0.4",
         facecolor="#1e1e1e",
-        edgecolor="#00ff66",
+        edgecolor="#ffffff",
         alpha=0.85,
     ),
 )
 
 # ---------------------------------------------------------
-# 4. Tactical Views Logic
+# DRAW HEATMAP DENSITY (If Heatmap Only or Combined selected)
 # ---------------------------------------------------------
-
-# MODE 1: GOALKEEPER DISTRIBUTION MAP (تمريرات حارس المرمى)
-if (
-    tactical_view
-    == "🧤 Goalkeeper Distribution Map (تمريرات حارس المرمى)"
-):
-    # إحصائيات تقريبية لتمريرات الحارس Jalal Hassan
-    gk_short_succ = 18  # تمريرات قصيرة ناجحة لبناء اللعب
-    gk_long_succ = 12   # كرات طويلة ناجحة
-    gk_long_fail = 6    # كرات طويلة مقطوعة أو خارج الملعب
-
-    gk_x = 8
-    gk_y = 40
-
-    # رسم موقع الحارس
-    pitch.scatter(
-        gk_x, gk_y, s=600, color="#00ff66", edgecolors="#ffffff", linewidth=2, ax=ax, zorder=7
+if pitch_mode in ["Heatmap Only", "Combined Overlay"]:
+    total_actions = int(
+        p_data.get("Pass Total", 0)
+        + p_data.get("Dribble Total", 0)
+        + p_data.get("BallWon Total", 0)
     )
-    ax.text(
-        gk_x, gk_y, "12", color="#000000", fontsize=12, ha="center", va="center", fontweight="bold", zorder=8
+    sample_size = max(min(total_actions, 150), 40)
+
+    hx = np.clip(
+        np.random.normal(
+            loc=(zone["x"][0] + zone["x"][1]) / 2, scale=12, size=sample_size
+        ),
+        2,
+        118,
     )
-    ax.text(
-        gk_x, gk_y - 5.5, "Jalal Hassan (GK)", color="#ffffff", fontsize=10, ha="center", va="center", fontweight="bold", zorder=8,
-        bbox=dict(boxstyle="round,pad=0.25", facecolor="#111111", edgecolor="#00ff66", alpha=0.9)
+    hy = np.clip(
+        np.random.normal(
+            loc=(zone["y"][0] + zone["y"][1]) / 2, scale=10, size=sample_size
+        ),
+        2,
+        78,
     )
 
-    # 1. التمريرات القصيرة الناجحة لبناء اللعب من الخلف (Green Arrows)
-    if gk_short_succ > 0:
-        sp_x2 = np.random.uniform(22, 38, gk_short_succ)
-        sp_y2 = np.random.uniform(12, 68, gk_short_succ)
-        sp_x1 = np.full(gk_short_succ, gk_x)
-        sp_y1 = np.full(gk_short_succ, gk_y)
-
-        pitch.arrows(
-            sp_x1, sp_y1, sp_x2, sp_y2,
-            color="#00ff66", width=1.8, headwidth=3.5, headlength=3.5, alpha=0.75, ax=ax,
-            label=f"Short Build-up Passes ({gk_short_succ})", zorder=4
-        )
-
-    # 2. الكرات الطويلة المباشرة الناجحة عبر خط الوسط (Purple Arrows)
-    if gk_long_succ > 0:
-        lp_x2 = np.random.uniform(60, 95, gk_long_succ)
-        lp_y2 = np.random.uniform(10, 70, gk_long_succ)
-        lp_x1 = np.full(gk_long_succ, gk_x)
-        lp_y1 = np.full(gk_long_succ, gk_y)
-
-        pitch.arrows(
-            lp_x1, lp_y1, lp_x2, lp_y2,
-            color="#d500f9", width=2.0, headwidth=4.0, headlength=4.0, alpha=0.85, ax=ax,
-            label=f"Successful Long Kicks ({gk_long_succ})", zorder=5
-        )
-
-    # 3. الكرات الطويلة غير المكتملة (Red Arrows)
-    if gk_long_fail > 0:
-        lf_x2 = np.random.uniform(55, 90, gk_long_fail)
-        lf_y2 = np.random.choice([np.random.uniform(2, 8), np.random.uniform(72, 78)], gk_long_fail)
-        lf_x1 = np.full(gk_long_fail, gk_x)
-        lf_y1 = np.full(gk_long_fail, gk_y)
-
-        pitch.arrows(
-            lf_x1, lf_y1, lf_x2, lf_y2,
-            color="#ff1744", width=1.5, headwidth=3.5, headlength=3.5, alpha=0.6, ax=ax,
-            label=f"Incomplete Kicks ({gk_long_fail})", zorder=3
-        )
-
-# MODE 2: AVERAGE PLAYER POSITIONS MAP
-elif (
-    tactical_view
-    == "📍 Average Player Positions Map (متوسط تمركز أفراد الفريق)"
-):
-    players = [
-        {"num": 12, "pos": "GK", "x": 10, "y": 40, "name": "Jalal Hassan"},
-        {"num": 2, "pos": "RB", "x": 38, "y": 70, "name": "Mustafa Saadoon"},
-        {"num": 4, "pos": "CB", "x": 32, "y": 52, "name": "Mithaq Abbas"},
-        {"num": 15, "pos": "CB", "x": 32, "y": 28, "name": "Hassan Srour"},
-        {"num": 3, "pos": "LB", "x": 38, "y": 10, "name": "Kadhem Mustafa"},
-        {"num": 6, "pos": "DM", "x": 48, "y": 40, "name": "Hussein Falah"},
-        {"num": 8, "pos": "CM", "x": 62, "y": 56, "name": "Akam Hashem"},
-        {"num": 10, "pos": "AM", "x": 65, "y": 24, "name": "Hasan Abdulkareem"},
-        {"num": 7, "pos": "RW", "x": 78, "y": 68, "name": "Hiran Ahmed"},
-        {"num": 9, "pos": "ST", "x": 88, "y": 40, "name": "Alaa Abbas"},
-        {"num": 11, "pos": "LW", "x": 78, "y": 12, "name": "Maicol Cabrera"},
-    ]
-
-    links = [
-        (4, 15), (4, 2), (15, 3), (4, 6), (15, 6),
-        (6, 8), (6, 10), (8, 7), (10, 11), (8, 9), (10, 9), (7, 9), (11, 9)
-    ]
-    p_map = {p["num"]: (p["x"], p["y"]) for p in players}
-
-    for p1_num, p2_num in links:
-        x1, y1 = p_map[p1_num]
-        x2, y2 = p_map[p2_num]
-        ax.plot(
-            [x1, x2],
-            [y1, y2],
-            color="#00e5ff",
-            linewidth=2.2,
-            alpha=0.45,
-            zorder=3,
-        )
-
-    for p in players:
-        px_var = np.random.normal(p["x"], 3.2, 10)
-        py_var = np.random.normal(p["y"], 3.2, 10)
-        pitch.scatter(
-            px_var, py_var, s=28, color="#ffd700", alpha=0.35, ax=ax, zorder=4
-        )
-
-        pitch.scatter(
-            p["x"],
-            p["y"],
-            s=520,
-            color="#00ff66",
-            edgecolors="#ffffff",
-            linewidth=2,
-            ax=ax,
-            zorder=6,
-        )
-
-        ax.text(
-            p["x"],
-            p["y"],
-            str(p["num"]),
-            color="#000000",
-            fontsize=11.5,
-            ha="center",
-            va="center",
-            fontweight="bold",
-            zorder=7,
-        )
-
-        ax.text(
-            p["x"],
-            p["y"] - 4.8,
-            f"{p['name']} ({p['pos']})",
-            color="#ffffff",
-            fontsize=9.5,
-            ha="center",
-            va="center",
-            fontweight="bold",
-            zorder=7,
-            bbox=dict(
-                boxstyle="round,pad=0.25",
-                facecolor="#111111",
-                edgecolor="#00ff66",
-                alpha=0.9,
-            ),
-        )
-
-# MODE 3: 5 VERTICAL CHANNELS ATTACKS & ATTEMPTS
-elif (
-    tactical_view
-    == "📊 5 Vertical Channels Attacks & Attempts (المحاولات في القنوات الخمس)"
-):
-    pass_succ = int(team_data.get("Pass Success", 1251))
-    key_passes = int(team_data.get("Chances KeyPasses", 25))
-    open_crosses = int(team_data.get("OpenPlayCross Total", 20))
-    dribbles_succ = int(team_data.get("Dribble Success", 16))
-
-    channels = [
-        {"name": "Left Flank\n(الطرف الأيسر)", "y_mid": 9, "y1": 0, "y2": 18, "pct": 24, "color": "#00e5ff"},
-        {"name": "Left Half-Space\n(نصف المساحة اليسرى)", "y_mid": 24, "y1": 18, "y2": 30, "pct": 18, "color": "#ffd700"},
-        {"name": "Center / Zone 14\n(العمق والمركز)", "y_mid": 40, "y1": 30, "y2": 50, "pct": 28, "color": "#ff1744"},
-        {"name": "Right Half-Space\n(نصف المساحة اليمنى)", "y_mid": 56, "y1": 50, "y2": 62, "pct": 14, "color": "#ffd700"},
-        {"name": "Right Flank\n(الطرف الأيمن)", "y_mid": 71, "y1": 62, "y2": 80, "pct": 16, "color": "#00e5ff"},
-    ]
-
-    tot_actions = key_passes + open_crosses + dribbles_succ + int(pass_succ * 0.25)
-
-    for ch in channels:
-        ch_count = int(tot_actions * (ch["pct"] / 100))
-        ax.axhspan(ch["y1"], ch["y2"], color=ch["color"], alpha=0.12, zorder=1)
-
-        cx = np.random.uniform(60, 110, ch_count)
-        cy = np.random.uniform(ch["y1"] + 2, ch["y2"] - 2, ch_count)
-        pitch.scatter(
-            cx, cy, s=40, color=ch["color"], alpha=0.6, ax=ax, zorder=4
-        )
-
-        ax.text(
-            92,
-            ch["y_mid"],
-            f"{ch['name']}\n{ch['pct']}% ({ch_count} Actions)",
-            color="#ffffff",
-            fontsize=10,
-            ha="center",
-            va="center",
-            fontweight="bold",
-            zorder=6,
-            bbox=dict(
-                boxstyle="round,pad=0.3",
-                facecolor="#111111",
-                edgecolor=ch["color"],
-                alpha=0.9,
-            ),
-        )
-
-# MODE 4: FINAL THIRD ENTRIES MAP
-elif tactical_view == "🚀 Final Third Entries Map (طرق دخول الثلث الأخير)":
-    long_pass_succ = int(team_data.get("LongPass Success", 76))
-    pass_succ = int(team_data.get("Pass Success", 1251))
-    dribble_succ = int(team_data.get("Dribble Success", 16))
-    open_crosses = int(team_data.get("OpenPlayCross Total", 20))
-
-    short_entries_count = int(pass_succ * 0.08)
-
-    if short_entries_count > 0:
-        sp_x1 = np.random.uniform(45, 78, short_entries_count)
-        sp_y1 = np.random.uniform(8, 72, short_entries_count)
-        sp_x2 = np.random.uniform(81, 102, short_entries_count)
-        sp_y2 = np.random.uniform(10, 70, short_entries_count)
-        pitch.arrows(
-            sp_x1, sp_y1, sp_x2, sp_y2,
-            color="#ffffff", width=1.2, headwidth=3.0, headlength=3.0, alpha=0.4, ax=ax,
-            label=f"Short Build-up Entries ({short_entries_count})", zorder=3
-        )
-
-    if long_pass_succ > 0:
-        lp_x1 = np.random.uniform(15, 60, long_pass_succ)
-        lp_y1 = np.random.uniform(10, 70, long_pass_succ)
-        lp_x2 = np.random.uniform(82, 112, long_pass_succ)
-        lp_y2 = np.random.uniform(8, 72, long_pass_succ)
-        pitch.arrows(
-            lp_x1, lp_y1, lp_x2, lp_y2,
-            color="#d500f9", width=1.8, headwidth=3.5, headlength=3.5, alpha=0.75, ax=ax,
-            label=f"Direct Long Pass Entries ({long_pass_succ})", zorder=4
-        )
-
-    if dribble_succ > 0:
-        dr_x1 = np.random.uniform(55, 78, dribble_succ)
-        dr_y1 = np.random.uniform(10, 70, dribble_succ)
-        dr_x2 = np.clip(dr_x1 + np.random.uniform(12, 22, dribble_succ), 81, 108)
-        dr_y2 = np.clip(dr_y1 + np.random.uniform(-8, 8, dribble_succ), 5, 75)
-        pitch.arrows(
-            dr_x1, dr_y1, dr_x2, dr_y2,
-            color="#ffd700", width=2.2, headwidth=4.0, headlength=4.0, ax=ax,
-            label=f"Dribble Carries into Final 1/3 ({dribble_succ})", zorder=5
-        )
-
-    if open_crosses > 0:
-        cr_x1 = np.random.uniform(80, 102, open_crosses)
-        cr_y1 = np.random.choice([np.random.uniform(5, 18), np.random.uniform(62, 75)], open_crosses)
-        cr_x2 = np.random.uniform(94, 114, open_crosses)
-        cr_y2 = np.random.uniform(22, 58, open_crosses)
-        pitch.arrows(
-            cr_x1, cr_y1, cr_x2, cr_y2,
-            color="#00ff66", width=1.8, headwidth=3.5, headlength=3.5, alpha=0.8, ax=ax,
-            label=f"Flank Cross Entries ({open_crosses})", zorder=5
-        )
-
-# MODE 5: PENALTY AREA ENTRIES MAP
-elif (
-    tactical_view
-    == "📥 Penalty Area Entries Map (طرق دخول منطقة الجزاء)"
-):
-    key_passes = int(team_data.get("Chances KeyPasses", 25))
-    cross_succ = int(team_data.get("OpenPlayCross Success", 4)) + int(
-        team_data.get("SetPieceCross Success", 6)
-    )
-    dribble_succ = int(team_data.get("Dribble Success", 16))
-
-    if key_passes > 0:
-        kp_x1 = np.random.uniform(65, 92, key_passes)
-        kp_y1 = np.random.uniform(20, 60, key_passes)
-        kp_x2 = np.random.uniform(96, 114, key_passes)
-        kp_y2 = np.random.uniform(22, 58, key_passes)
-        pitch.arrows(
-            kp_x1, kp_y1, kp_x2, kp_y2,
-            color="#d500f9", width=2.0, headwidth=4.0, headlength=4.0, ax=ax,
-            label=f"Central & Half-Space Key Passes ({key_passes})", zorder=5
-        )
-
-    if cross_succ > 0:
-        cr_x1 = np.random.uniform(75, 105, cross_succ)
-        cr_y1 = np.random.choice([np.random.uniform(5, 15), np.random.uniform(65, 75)], cross_succ)
-        cr_x2 = np.random.uniform(98, 114, cross_succ)
-        cr_y2 = np.random.uniform(24, 56, cross_succ)
-        pitch.arrows(
-            cr_x1, cr_y1, cr_x2, cr_y2,
-            color="#00ff66", width=2.2, headwidth=4.0, headlength=4.0, ax=ax,
-            label=f"Completed Crosses into Box ({cross_succ})", zorder=5
-        )
-
-    if dribble_succ > 0:
-        dr_x1 = np.random.uniform(70, 95, dribble_succ)
-        dr_y1 = np.random.uniform(15, 65, dribble_succ)
-        dr_x2 = np.clip(dr_x1 + np.random.uniform(10, 18, dribble_succ), 80, 110)
-        dr_y2 = np.clip(dr_y1 + np.random.uniform(-5, 5, dribble_succ), 18, 62)
-        pitch.arrows(
-            dr_x1, dr_y1, dr_x2, dr_y2,
-            color="#ffd700", width=1.8, headwidth=3.5, headlength=3.5, ax=ax,
-            label=f"Dribble Carries into Box ({dribble_succ})", zorder=5
-        )
-
-# MODE 6: KEY PASSES & ASSISTS MAP
-elif (
-    tactical_view
-    == "🔑 Key Passes & Assists Map (التمريرات المفتاحية والحاسمة)"
-):
-    assists = int(team_data.get("Chances Assists", 6))
-    key_passes = int(team_data.get("Chances KeyPasses", 25))
-
-    if assists > 0:
-        ax1 = np.random.uniform(70, 100, assists)
-        ay1 = np.random.choice([np.random.uniform(5, 20), np.random.uniform(60, 75)], assists)
-        ax2 = np.random.uniform(96, 114, assists)
-        ay2 = np.random.uniform(24, 56, assists)
-
-        pitch.arrows(
-            ax1, ay1, ax2, ay2,
-            color="#ffd700", width=2.5, headwidth=4.5, headlength=4.5, ax=ax,
-            label=f"Goal Assists ({assists})", zorder=6
-        )
-
-        pitch.scatter(
-            ax2, ay2, s=220, color="#ffd700", marker="*", edgecolors="black", linewidth=1, ax=ax, zorder=7
-        )
-
-    if key_passes > 0:
-        kx1 = np.random.uniform(55, 95, key_passes)
-        ky1 = np.random.uniform(8, 72, key_passes)
-        kx2 = np.clip(kx1 + np.random.uniform(12, 28, key_passes), 5, 114)
-        ky2 = np.random.uniform(18, 62, key_passes)
-
-        pitch.arrows(
-            kx1, ky1, kx2, ky2,
-            color="#d500f9", width=2.0, headwidth=4.0, headlength=4.0, alpha=0.85, ax=ax,
-            label=f"Key Passes / Chance Creation ({key_passes})", zorder=5
-        )
-
-# MODE 7: OFFENSIVE DRIBBLES MAP
-elif tactical_view == "✨ Offensive Dribbles Map (المراوغات الهجومية - 37)":
-    dribble_tot = int(team_data.get("Dribble Total", 37))
-    dribble_succ = int(team_data.get("Dribble Success", 16))
-    dribble_fail = int(team_data.get("Dribble Fail", 21))
-
-    if dribble_succ > 0:
-        dx1 = np.random.uniform(40, 102, dribble_succ)
-        dy1 = np.random.uniform(8, 72, dribble_succ)
-        dx2 = np.clip(dx1 + np.random.uniform(5, 15, dribble_succ), 5, 115)
-        dy2 = np.clip(dy1 + np.random.uniform(-8, 8, dribble_succ), 2, 78)
-
-        pitch.scatter(
-            dx1, dy1, s=160, color="#ffd700", marker="*", edgecolors="white", linewidth=1, ax=ax,
-            label=f"Successful Dribbles ({dribble_succ})", zorder=5
-        )
-
-        pitch.arrows(
-            dx1, dy1, dx2, dy2,
-            color="#00ff66", width=1.8, headwidth=3.5, headlength=3.5, alpha=0.85, ax=ax, zorder=5
-        )
-
-    if dribble_fail > 0:
-        fx1 = np.random.uniform(35, 100, dribble_fail)
-        fy1 = np.random.uniform(8, 72, dribble_fail)
-
-        pitch.scatter(
-            fx1, fy1, s=120, color="#ff6d00", marker="X", linewidth=1.8, ax=ax,
-            label=f"Failed Dribbles ({dribble_fail})", zorder=4
-        )
-
-# MODE 8: AERIAL DUELS MAP
-elif tactical_view == "⚔️ Aerial Duels Map (الالتحامات الهوائية)":
-    aerial_won = int(team_data.get("BallWon Aerial", 41))
-    aerial_lost = int(team_data.get("BallLost Aerial", 49))
-
-    if aerial_won > 0:
-        pitch.scatter(
-            np.random.uniform(15, 105, aerial_won),
-            np.random.uniform(8, 72, aerial_won),
-            s=130, color="#00e5ff", marker="D", edgecolors="white", linewidth=1, ax=ax,
-            label=f"Aerial Duels Won ({aerial_won})", zorder=5
-        )
-
-    if aerial_lost > 0:
-        pitch.scatter(
-            np.random.uniform(15, 105, aerial_lost),
-            np.random.uniform(8, 72, aerial_lost),
-            s=120, color="#ff1744", marker="D", edgecolors="black", linewidth=1, alpha=0.85, ax=ax,
-            label=f"Aerial Duels Lost ({aerial_lost})", zorder=4
-        )
-
-# MODE 9: GROUND DUELS MAP
-elif tactical_view == "🤼 Ground Duels Map (الالتحامات الأرضية)":
-    tackles_won = int(team_data.get("BallWon TackleWon", 24))
-    dribbles_won = int(team_data.get("Dribble Success", 16))
-    tackles_failed = int(team_data.get("Defensive TackleFail", 19))
-    dribbles_failed = int(team_data.get("Dribble Fail", 21))
-    ground_failed_tot = tackles_failed + dribbles_failed
-
-    if tackles_won > 0:
-        pitch.scatter(
-            np.random.uniform(15, 85, tackles_won),
-            np.random.uniform(8, 72, tackles_won),
-            s=140, color="#00ff66", marker="o", edgecolors="black", linewidth=1, ax=ax,
-            label=f"Tackles Won ({tackles_won})", zorder=5
-        )
-
-    if dribbles_won > 0:
-        pitch.scatter(
-            np.random.uniform(45, 105, dribbles_won),
-            np.random.uniform(8, 72, dribbles_won),
-            s=150, color="#ffd700", marker="*", edgecolors="white", linewidth=1, ax=ax,
-            label=f"Successful Dribbles ({dribbles_won})", zorder=5
-        )
-
-    if ground_failed_tot > 0:
-        pitch.scatter(
-            np.random.uniform(20, 100, ground_failed_tot),
-            np.random.uniform(8, 72, ground_failed_tot),
-            s=110, color="#ff6d00", marker="s", edgecolors="black", linewidth=0.8, alpha=0.8, ax=ax,
-            label=f"Failed Ground Duels ({ground_failed_tot})", zorder=4
-        )
-
-# MODE 10: TEAM SHOTS MAP
-elif tactical_view == "⚽ Team Shots Map (تسديدات الفريق الهجومية - 42)":
-    shots_tot = int(team_data.get("Attempts Total", 42))
-    shots_succ = int(team_data.get("Attempts Success", 22))
-    goals = int(team_data.get("GoalsScored Total", 8)) + int(team_data.get("GoalsConceded OwnGoals", 1))
-    bars = int(team_data.get("Attempts Bars", 3))
-
-    on_target = max(0, shots_succ - goals)
-    off_target = max(0, shots_tot - shots_succ)
-
-    if goals > 0:
-        pitch.scatter(
-            np.random.uniform(94, 114, goals),
-            np.random.uniform(22, 58, goals),
-            s=350, color="#ffd700", marker="*", edgecolors="white", linewidth=1.2, ax=ax,
-            label=f"Total Goals ({goals})", zorder=6
-        )
-
-    if on_target > 0:
-        pitch.scatter(
-            np.random.uniform(85, 112, on_target),
-            np.random.uniform(20, 60, on_target),
-            s=140, color="#00ff66", marker="o", edgecolors="black", linewidth=1, ax=ax,
-            label=f"Shots On Target ({on_target})", zorder=5
-        )
-
-    if bars > 0:
-        pitch.scatter(
-            np.random.uniform(105, 115, bars),
-            np.random.uniform(26, 54, bars),
-            s=160, color="#ffab00", marker="s", edgecolors="white", linewidth=1, ax=ax,
-            label=f"Hit Post/Bar ({bars})", zorder=5
-        )
-
-    if off_target > 0:
-        pitch.scatter(
-            np.random.uniform(70, 110, off_target),
-            np.random.uniform(10, 70, off_target),
-            s=120, color="#ff1744", marker="x", linewidth=2, ax=ax,
-            label=f"Off Target ({off_target})", zorder=4
-        )
-
-# MODE 11: OPPONENT SHOTS CONCEDED
-elif (
-    tactical_view
-    == "🛡️ Opponent Shots Conceded (التسديدات المستقبلة من المنافسين)"
-):
-    goals_conceded = int(team_data.get("GoalsConceded Total", 1))
-    blocks = int(team_data.get("Defensive Blocks", 10))
-    opp_shots_tot = 17
-    opp_off_target = max(0, opp_shots_tot - (goals_conceded + blocks))
-
-    if goals_conceded > 0:
-        pitch.scatter(
-            np.random.uniform(5, 12, goals_conceded),
-            np.random.uniform(32, 48, goals_conceded),
-            s=350, color="#ff1744", marker="*", edgecolors="white", linewidth=1.5, ax=ax,
-            label=f"Goals Conceded ({goals_conceded})", zorder=6
-        )
-
-    if blocks > 0:
-        pitch.scatter(
-            np.random.uniform(12, 32, blocks),
-            np.random.uniform(20, 60, blocks),
-            s=150, color="#00e5ff", marker="D", edgecolors="white", linewidth=1, ax=ax,
-            label=f"Defensive Blocks ({blocks})", zorder=5
-        )
-
-    if opp_off_target > 0:
-        pitch.scatter(
-            np.random.uniform(15, 45, opp_off_target),
-            np.random.uniform(8, 72, opp_off_target),
-            s=110, color="#ffab00", marker="o", edgecolors="black", linewidth=1, ax=ax,
-            label=f"Opponent Off Target ({opp_off_target})", zorder=4
-        )
-
-# MODE 12: ALL PASSES MAP
-elif tactical_view == "🎯 All Passes Map (ALL 1545 Passes)":
-    pass_tot = int(team_data.get("Pass Total", 1545))
-    pass_succ = int(team_data.get("Pass Success", 1251))
-    pass_fail = max(0, pass_tot - pass_succ)
-
-    if pass_succ > 0:
-        px1 = np.random.uniform(5, 105, pass_succ)
-        py1 = np.random.uniform(2, 78, pass_succ)
-        px2 = np.clip(px1 + np.random.uniform(-15, 35, pass_succ), 5, 115)
-        py2 = np.clip(py1 + np.random.uniform(-25, 25, pass_succ), 2, 78)
-        pitch.arrows(
-            px1, py1, px2, py2,
-            color="#00ff66", width=1.0, headwidth=2.0, headlength=2.0, alpha=0.25, ax=ax,
-            label=f"Successful Passes ({pass_succ})", zorder=3
-        )
-
-    if pass_fail > 0:
-        fx1 = np.random.uniform(10, 105, pass_fail)
-        fy1 = np.random.uniform(5, 75, pass_fail)
-        fx2 = np.clip(fx1 + np.random.uniform(-15, 35, pass_fail), 5, 115)
-        fy2 = np.clip(fy1 + np.random.uniform(-25, 25, pass_fail), 5, 75)
-        pitch.arrows(
-            fx1, fy1, fx2, fy2,
-            color="#ff1744", width=1.0, headwidth=2.0, headlength=2.0, alpha=0.45, ax=ax,
-            label=f"Failed Passes ({pass_fail})", zorder=4
-        )
-
-# MODE 13: SHORT PASSES MAP
-elif tactical_view == "📐 Short Passes Map (ALL 1322 Short Passes)":
-    sp_tot = int(team_data.get("ShortPass Total", 1322))
-    sp_succ = int(team_data.get("ShortPass Success", 1165))
-    sp_fail = max(0, sp_tot - sp_succ)
-
-    if sp_succ > 0:
-        px1 = np.random.uniform(10, 100, sp_succ)
-        py1 = np.random.uniform(2, 78, sp_succ)
-        px2 = np.clip(px1 + np.random.uniform(-10, 20, sp_succ), 5, 115)
-        py2 = np.clip(py1 + np.random.uniform(-15, 15, sp_succ), 2, 78)
-        pitch.arrows(
-            px1, py1, px2, py2,
-            color="#00e5ff", width=1.0, headwidth=2.0, headlength=2.0, alpha=0.25, ax=ax,
-            label=f"Short Success ({sp_succ})", zorder=3
-        )
-
-    if sp_fail > 0:
-        fx1 = np.random.uniform(10, 100, sp_fail)
-        fy1 = np.random.uniform(5, 75, sp_fail)
-        fx2 = np.clip(fx1 + np.random.uniform(-10, 20, sp_fail), 5, 115)
-        fy2 = np.clip(fy1 + np.random.uniform(-15, 15, sp_fail), 5, 75)
-        pitch.arrows(
-            fx1, fy1, fx2, fy2,
-            color="#ff1744", width=1.0, headwidth=2.0, headlength=2.0, alpha=0.45, ax=ax,
-            label=f"Short Failed ({sp_fail})", zorder=4
-        )
-
-# MODE 14: LONG PASSES MAP
-elif tactical_view == "📏 Long Passes Map (ALL 189 Long Passes)":
-    lp_tot = int(team_data.get("LongPass Total", 189))
-    lp_succ = int(team_data.get("LongPass Success", 76))
-    lp_fail = max(0, lp_tot - lp_succ)
-
-    if lp_succ > 0:
-        px1 = np.random.uniform(5, 65, lp_succ)
-        py1 = np.random.uniform(5, 75, lp_succ)
-        px2 = np.clip(px1 + np.random.uniform(35, 70, lp_succ), 5, 115)
-        py2 = np.clip(
-            py1 + np.random.choice([np.random.uniform(20, 50), np.random.uniform(-50, -20)], lp_succ), 2, 78
-        )
-        pitch.arrows(
-            px1, py1, px2, py2,
-            color="#d500f9", width=1.8, headwidth=3.5, headlength=3.5, alpha=0.7, ax=ax,
-            label=f"Long Success ({lp_succ})", zorder=4
-        )
-
-    if lp_fail > 0:
-        fx1 = np.random.uniform(5, 65, lp_fail)
-        fy1 = np.random.uniform(5, 75, lp_fail)
-        fx2 = np.clip(fx1 + np.random.uniform(35, 70, lp_fail), 5, 115)
-        fy2 = np.clip(
-            fy1 + np.random.choice([np.random.uniform(20, 50), np.random.uniform(-50, -20)], lp_fail), 2, 78
-        )
-        pitch.arrows(
-            fx1, fy1, fx2, fy2,
-            color="#ffab00", width=1.8, headwidth=3.5, headlength=3.5, alpha=0.7, ax=ax,
-            label=f"Long Failed ({lp_fail})", zorder=3
-        )
-
-# MODE 15: SET-PIECE & CORNER CROSSES
-elif (
-    tactical_view
-    == "🚩 Set-Piece & Corner Crosses (الركنيات والضربات الثابتة)"
-):
-    sp_succ = int(team_data.get("SetPieceCross Success", 6))
-    sp_tot = int(team_data.get("SetPieceCross Total", 14))
-    sp_fail = max(0, sp_tot - sp_succ)
-
-    if sp_succ > 0:
-        sp_sx1 = np.random.choice([118, 119, 120], sp_succ)
-        sp_sy1 = np.random.choice([1, 2, 78, 79], sp_succ)
-        sp_sx2 = np.random.uniform(102, 114, sp_succ)
-        sp_sy2 = np.random.uniform(24, 56, sp_succ)
-        pitch.arrows(
-            sp_sx1, sp_sy1, sp_sx2, sp_sy2,
-            color="#d500f9", width=2.5, headwidth=4.5, headlength=4.5, ax=ax,
-            label=f"Corner / Set-Piece Completed ({sp_succ})", zorder=5
-        )
-
-    if sp_fail > 0:
-        sp_fx1 = np.random.choice([118, 119, 120], sp_fail)
-        sp_fy1 = np.random.choice([1, 2, 78, 79], sp_fail)
-        sp_fx2 = np.random.uniform(92, 108, sp_fail)
-        sp_fy2 = np.random.uniform(15, 65, sp_fail)
-        pitch.arrows(
-            sp_fx1, sp_fy1, sp_fx2, sp_fy2,
-            color="#ffab00", width=2, headwidth=4, headlength=4, alpha=0.75, ax=ax,
-            label=f"Corner / Set-Piece Incomplete ({sp_fail})", zorder=4
-        )
-
-# MODE 16: ALL CROSSES COMBINED
-elif (
-    tactical_view
-    == "🌐 ALL Crosses Combined (كافة العرضيات مجتمعة)"
-):
-    op_succ = int(team_data.get("OpenPlayCross Success", 4))
-    op_tot = int(team_data.get("OpenPlayCross Total", 20))
-    op_fail = max(0, op_tot - op_succ)
-    sp_succ = int(team_data.get("SetPieceCross Success", 6))
-    sp_tot = int(team_data.get("SetPieceCross Total", 14))
-    sp_fail = max(0, sp_tot - sp_succ)
-
-    if op_succ > 0:
-        pitch.arrows(
-            np.random.uniform(70, 102, op_succ),
-            np.random.choice([np.random.uniform(5, 17), np.random.uniform(63, 75)], op_succ),
-            np.random.uniform(94, 114, op_succ),
-            np.random.uniform(22, 58, op_succ),
-            color="#00ff66", width=2.5, headwidth=4.5, headlength=4.5, ax=ax,
-            label=f"Open Play Completed ({op_succ})", zorder=5
-        )
-
-    if op_fail > 0:
-        pitch.arrows(
-            np.random.uniform(65, 100, op_fail),
-            np.random.choice([np.random.uniform(5, 17), np.random.uniform(63, 75)], op_fail),
-            np.random.uniform(85, 108, op_fail),
-            np.random.uniform(10, 70, op_fail),
-            color="#ff3333", width=2, headwidth=4, headlength=4, alpha=0.75, ax=ax,
-            label=f"Open Play Incomplete ({op_fail})", zorder=3
-        )
-
-    if sp_succ > 0:
-        pitch.arrows(
-            np.random.choice([118, 119, 120], sp_succ),
-            np.random.choice([1, 2, 78, 79], sp_succ),
-            np.random.uniform(102, 114, sp_succ),
-            np.random.uniform(24, 56, sp_succ),
-            color="#d500f9", width=2.5, headwidth=4.5, headlength=4.5, ax=ax,
-            label=f"Set-Piece Completed ({sp_succ})", zorder=5
-        )
-
-    if sp_fail > 0:
-        pitch.arrows(
-            np.random.choice([118, 119, 120], sp_fail),
-            np.random.choice([1, 2, 78, 79], sp_fail),
-            np.random.uniform(92, 108, sp_fail),
-            np.random.uniform(15, 65, sp_fail),
-            color="#ffab00", width=2, headwidth=4, headlength=4, alpha=0.75, ax=ax,
-            label=f"Set-Piece Incomplete ({sp_fail})", zorder=4
-        )
-
-# MODE 17: OPEN PLAY CROSSES
-elif tactical_view == "↗️ Open Play Crosses (عرضيات اللعب المفتوح)":
-    op_succ = int(team_data.get("OpenPlayCross Success", 4))
-    op_tot = int(team_data.get("OpenPlayCross Total", 20))
-    op_fail = max(0, op_tot - op_succ)
-
-    if op_succ > 0:
-        pitch.arrows(
-            np.random.uniform(70, 102, op_succ),
-            np.random.choice([np.random.uniform(5, 17), np.random.uniform(63, 75)], op_succ),
-            np.random.uniform(94, 114, op_succ),
-            np.random.uniform(22, 58, op_succ),
-            color="#00ff66", width=2.5, headwidth=4.5, headlength=4.5, ax=ax,
-            label=f"Open Play Completed ({op_succ})", zorder=5
-        )
-
-    if op_fail > 0:
-        pitch.arrows(
-            np.random.uniform(65, 100, op_fail),
-            np.random.choice([np.random.uniform(5, 17), np.random.uniform(63, 75)], op_fail),
-            np.random.uniform(85, 108, op_fail),
-            np.random.uniform(10, 70, op_fail),
-            color="#ff3333", width=2, headwidth=4, headlength=4, alpha=0.75, ax=ax,
-            label=f"Open Play Incomplete ({op_fail})", zorder=4
-        )
-
-# MODE 18: PASSES INTO HALF-SPACES
-elif tactical_view == "📥 ALL Passes INTO Half-Spaces":
-    pass_succ = int(team_data.get("Pass Success", 1251))
-    total_into_hs = int(pass_succ * 0.15)
-    px1 = np.random.uniform(25, 85, total_into_hs)
-    py1 = np.random.choice([np.random.uniform(2, 17), np.random.uniform(31, 49), np.random.uniform(63, 78)], total_into_hs)
-    px2 = np.clip(px1 + np.random.uniform(8, 25, total_into_hs), 5, 115)
-    py2 = np.random.choice([np.random.uniform(19, 29), np.random.uniform(51, 61)], total_into_hs)
-    pitch.arrows(
-        px1, py1, px2, py2,
-        color="#00ff66", width=1.5, headwidth=3.5, headlength=3.5, alpha=0.6, ax=ax,
-        label=f"Passes INTO Half-Spaces ({total_into_hs})", zorder=4
-    )
-
-# MODE 19: PASSES OUT OF HALF-SPACES
-elif tactical_view == "📤 ALL Passes OUT OF Half-Spaces":
-    pass_succ = int(team_data.get("Pass Success", 1251))
-    total_out_hs = int(pass_succ * 0.15)
-    px1 = np.random.uniform(35, 90, total_out_hs)
-    py1 = np.random.choice([np.random.uniform(19, 29), np.random.uniform(51, 61)], total_out_hs)
-    px2 = np.clip(px1 + np.random.uniform(8, 25, total_out_hs), 5, 115)
-    py2 = np.random.choice([np.random.uniform(31, 49), np.random.uniform(2, 17), np.random.uniform(63, 78)], total_out_hs)
-    pitch.arrows(
-        px1, py1, px2, py2,
-        color="#00e5ff", width=1.5, headwidth=3.5, headlength=3.5, alpha=0.6, ax=ax,
-        label=f"Passes OUT OF Half-Spaces ({total_out_hs})", zorder=4
-    )
-
-# MODE 20: BALL RECOVERY ZONES
-elif (
-    tactical_view
-    == "🛡️ Ball Recovery Zones (254 Recoveries + 51 Interceptions)"
-):
-    rec = int(team_data.get("BallWon BallRecover", 254))
-    inter = int(team_data.get("BallWon InterceptionWon", 51))
-    tack = int(team_data.get("BallWon TackleWon", 24))
-
-    pitch.scatter(
-        np.random.uniform(10, 105, rec),
-        np.random.uniform(5, 75, rec),
-        s=50, color="#00e5ff", marker="s", alpha=0.85, edgecolors="white", linewidth=0.5, ax=ax,
-        label=f"Recoveries ({rec})", zorder=4
-    )
-    if inter > 0:
-        pitch.scatter(
-            np.random.uniform(15, 95, inter),
-            np.random.uniform(5, 75, inter),
-            s=65, color="#ffab00", marker="D", edgecolors="white", linewidth=0.6, ax=ax,
-            label=f"Interceptions ({inter})", zorder=5
-        )
-    if tack > 0:
-        pitch.scatter(
-            np.random.uniform(15, 85, tack),
-            np.random.uniform(5, 75, tack),
-            s=60, color="#00ff66", marker="o", edgecolors="black", linewidth=0.6, ax=ax,
-            label=f"Tackles Won ({tack})", zorder=5
-        )
-
-# MODE 21: TEAM RECOVERY HEATMAP
-elif tactical_view == "🔥 Team Recovery Heatmap (Density Only)":
-    rec = int(team_data.get("BallWon BallRecover", 254))
+    alpha_val = 0.7 if pitch_mode == "Heatmap Only" else 0.45
     sns.kdeplot(
-        x=np.random.uniform(10, 105, rec),
-        y=np.random.uniform(5, 75, rec),
-        ax=ax, fill=True, thresh=0.05, levels=15, cmap="YlOrRd", alpha=0.75, zorder=2
+        x=hx,
+        y=hy,
+        ax=ax,
+        fill=True,
+        thresh=0.08,
+        levels=15,
+        cmap="YlOrRd",
+        alpha=alpha_val,
+        zorder=2,
     )
 
-# MODE 22: TEAM PRESSING MAP
-elif tactical_view == "⚡ Team Pressing Map":
-    px = np.clip(np.random.normal(65, 18, 120), 5, 115)
-    py = np.clip(np.random.normal(40, 16, 120), 5, 75)
-    sns.kdeplot(
-        x=px, y=py, ax=ax, fill=True, thresh=0.08, levels=15, cmap="YlOrRd", alpha=0.65, zorder=2
-    )
-    pitch.scatter(
-        px, py, s=20, color="#ffea00", alpha=0.5, ax=ax, zorder=3, label="Pressing Actions"
-    )
+# ---------------------------------------------------------
+# DRAW ACTION EVENTS & ARROWS (If Action Map Only or Combined selected)
+# ---------------------------------------------------------
+if pitch_mode in ["Action Map Only", "Combined Overlay"]:
 
-# Pitch Legend Styling
+    # A. Pass Vectors (Green vs Red Arrows)
+    if show_passes:
+        pass_success = p_data.get("Pass Success", 0)
+        pass_total = p_data.get("Pass Total", 0)
+        pass_failed = max(0, pass_total - pass_success)
+
+        # Successful Passes
+        s_cnt = min(int(pass_success), 20)
+        if s_cnt > 0:
+            sx1 = np.random.uniform(zone["x"][0], zone["x"][1], s_cnt)
+            sy1 = np.random.uniform(zone["y"][0], zone["y"][1], s_cnt)
+            sx2 = np.clip(sx1 + np.random.uniform(8, 25, s_cnt), 5, 115)
+            sy2 = np.clip(sy1 + np.random.uniform(-15, 15, s_cnt), 5, 75)
+
+            pitch.arrows(
+                sx1,
+                sy1,
+                sx2,
+                sy2,
+                color="#00ff66",
+                width=2,
+                headwidth=4,
+                headlength=4,
+                ax=ax,
+                label=f"Completed Pass ({int(pass_success)})",
+                zorder=4,
+            )
+
+        # Incomplete Passes
+        f_cnt = min(int(pass_failed), 10)
+        if f_cnt > 0:
+            fx1 = np.random.uniform(zone["x"][0], zone["x"][1], f_cnt)
+            fy1 = np.random.uniform(zone["y"][0], zone["y"][1], f_cnt)
+            fx2 = np.clip(fx1 + np.random.uniform(10, 25, f_cnt), 5, 115)
+            fy2 = np.clip(fy1 + np.random.uniform(-20, 20, f_cnt), 5, 75)
+
+            pitch.arrows(
+                fx1,
+                fy1,
+                fx2,
+                fy2,
+                color="#ff3333",
+                width=2,
+                headwidth=4,
+                headlength=4,
+                ax=ax,
+                label=f"Incomplete Pass ({int(pass_failed)})",
+                zorder=3,
+            )
+
+    # B. Successful Crosses (Purple Triangles)
+    if show_crosses:
+        cross_cnt = p_data.get("Cross Success", 0)
+        if cross_cnt > 0:
+            cx = np.random.uniform(
+                max(zone["x"][0], 50), 105, min(int(cross_cnt), 12)
+            )
+            cy = np.random.uniform(5, 25, len(cx))
+            pitch.scatter(
+                cx,
+                cy,
+                s=160,
+                color="#d500f9",
+                marker="^",
+                edgecolors="white",
+                linewidth=1,
+                ax=ax,
+                label=f"Completed Cross ({int(cross_cnt)})",
+                zorder=5,
+            )
+
+    # C. Key Passes & Assists (Orange Plus)
+    if show_assists:
+        key_passes = p_data.get("Chances KeyPasses", 0) + p_data.get(
+            "Chances Assists", 0
+        )
+        if key_passes > 0:
+            kx = np.random.uniform(
+                zone["x"][0],
+                min(zone["x"][1] + 10, 110),
+                min(int(key_passes), 12),
+            )
+            ky = np.random.uniform(zone["y"][0], zone["y"][1], len(kx))
+            pitch.scatter(
+                kx,
+                ky,
+                s=200,
+                color="#ffab00",
+                marker="P",
+                edgecolors="white",
+                linewidth=1,
+                ax=ax,
+                label=f"Key Pass / Assist ({int(key_passes)})",
+                zorder=6,
+            )
+
+    # D. Successful Dribbles (Yellow Circles)
+    if show_dribbles:
+        dribbles_cnt = p_data.get("Dribble Success", 0)
+        if dribbles_cnt > 0:
+            dx = np.random.uniform(
+                zone["x"][0], zone["x"][1], min(int(dribbles_cnt), 12)
+            )
+            dy = np.random.uniform(zone["y"][0], zone["y"][1], len(dx))
+            pitch.scatter(
+                dx,
+                dy,
+                s=140,
+                color="#ffeb3b",
+                marker="o",
+                edgecolors="black",
+                linewidth=1,
+                ax=ax,
+                label=f"Successful Dribble ({int(dribbles_cnt)})",
+                zorder=5,
+            )
+
+    # E. Ball Recoveries & Tackles (Cyan Squares)
+    if show_ball_won:
+        tackles_cnt = p_data.get("BallWon Total", 0)
+        if tackles_cnt > 0:
+            bx = np.random.uniform(
+                max(zone["x"][0] - 15, 5),
+                zone["x"][1],
+                min(int(tackles_cnt), 12),
+            )
+            by = np.random.uniform(zone["y"][0], zone["y"][1], len(bx))
+            pitch.scatter(
+                bx,
+                by,
+                s=150,
+                color="#00e5ff",
+                marker="s",
+                edgecolors="white",
+                linewidth=1,
+                ax=ax,
+                label=f"Ball Recovery ({int(tackles_cnt)})",
+                zorder=5,
+            )
+
+    # F. Clearances & Blocks (Gray Diamonds)
+    if show_clearances:
+        def_cnt = p_data.get("Defensive Clear", 0) + p_data.get(
+            "Defensive Blocks", 0
+        )
+        if def_cnt > 0:
+            cl_x = np.random.uniform(
+                max(zone["x"][0] - 20, 5), zone["x"][1], min(int(def_cnt), 10)
+            )
+            cl_y = np.random.uniform(15, 65, len(cl_x))
+            pitch.scatter(
+                cl_x,
+                cl_y,
+                s=160,
+                color="#b0bec5",
+                marker="D",
+                edgecolors="black",
+                linewidth=1,
+                ax=ax,
+                label=f"Clearance / Block ({int(def_cnt)})",
+                zorder=5,
+            )
+
+    # G. Fouls Committed (Red Hexagons)
+    if show_fouls:
+        fouls_cnt = p_data.get("Fouls Committed", 0)
+        if fouls_cnt > 0:
+            fx = np.random.uniform(
+                zone["x"][0], zone["x"][1], min(int(fouls_cnt), 8)
+            )
+            fy = np.random.uniform(zone["y"][0], zone["y"][1], len(fx))
+            pitch.scatter(
+                fx,
+                fy,
+                s=170,
+                color="#ff6d00",
+                marker="h",
+                edgecolors="white",
+                linewidth=1,
+                ax=ax,
+                label=f"Foul Committed ({int(fouls_cnt)})",
+                zorder=5,
+            )
+
+    # H. Goals Scored (Gold Star)
+    if show_goals:
+        goals_cnt = p_data.get("GoalsScored Total", 0)
+        if goals_cnt > 0:
+            gx = np.random.uniform(
+                max(zone["x"][0], 88), 116, min(int(goals_cnt), 10)
+            )
+            gy = np.random.uniform(25, 55, len(gx))
+            pitch.scatter(
+                gx,
+                gy,
+                s=320,
+                color="#ffd700",
+                marker="*",
+                edgecolors="white",
+                linewidth=1.5,
+                ax=ax,
+                label=f"Goal Scored ({int(goals_cnt)})",
+                zorder=7,
+            )
+
+# Pitch Legend
 ax.legend(
     facecolor="#1e1e1e",
     edgecolor="#ffffff",
@@ -897,47 +401,37 @@ ax.legend(
 st.pyplot(fig)
 
 # ---------------------------------------------------------
-# 5. Numerical Metrics Summary
+# 6. Full Match Actions Data Breakdown
 # ---------------------------------------------------------
 st.markdown("---")
-st.subheader(f"📋 {team_name} Quantitative Metrics Summary")
+st.subheader("📋 Match Actions Quantitative Breakdown")
 
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.markdown("### 🧤 Goalkeeper & Build-up")
-    st.write("**GK Short Passes:** 18 Successful")
-    st.write("**GK Long Launches:** 12 Successful")
-    st.write("**Pass Completion:** ~83.3%")
+    st.markdown("### ⚽ Goals & Passing")
+    st.write(f"**Goals:** {int(p_data.get('GoalsScored Total', 0))}")
+    st.write(f"**Passes Completed:** {int(p_data.get('Pass Success', 0))}")
+    st.write(
+        f"**Failed Passes:** {max(0, int(p_data.get('Pass Total', 0)) - int(p_data.get('Pass Success', 0)))}"
+    )
 
 with col2:
-    st.markdown("### ⚽ Shooting & Goals")
+    st.markdown("### 🎯 Creation & Dribbles")
     st.write(
-        f"**Total Shots:** {int(team_data.get('Attempts Total', 42))} ({int(team_data.get('Attempts Success', 22))} On Target)"
+        f"**Key Passes / Assists:** {int(p_data.get('Chances KeyPasses', 0) + p_data.get('Chances Assists', 0))}"
     )
-    st.write(
-        f"**Goals Scored:** {int(team_data.get('GoalsScored Total', 8)) + int(team_data.get('GoalsConceded OwnGoals', 1))} (xG: {team_data.get('GoalsScored XG', 8.7)})"
-    )
-    st.write(f"**Shot Accuracy:** {team_data.get('Attempts Accuracy', 0)*100:.1f}%")
+    st.write(f"**Crosses Completed:** {int(p_data.get('Cross Success', 0))}")
+    st.write(f"**Dribbles Won:** {int(p_data.get('Dribble Success', 0))}")
 
 with col3:
-    st.markdown("### ⚔️ Duels & Battles")
-    st.write(
-        f"**Aerial Won:** {int(team_data.get('BallWon Aerial', 41))} / {int(team_data.get('BallWon Aerial', 41)) + int(team_data.get('BallLost Aerial', 49))}"
-    )
-    st.write(
-        f"**Tackles Won:** {int(team_data.get('BallWon TackleWon', 24))} / {int(team_data.get('BallWon TackleWon', 24)) + int(team_data.get('Defensive TackleFail', 19))}"
-    )
-    st.write(
-        f"**Recoveries:** {int(team_data.get('BallWon BallRecover', 254))}"
-    )
+    st.markdown("### 🛡️ Defensive Work")
+    st.write(f"**Ball Recoveries:** {int(p_data.get('BallWon Total', 0))}")
+    st.write(f"**Clearances:** {int(p_data.get('Defensive Clear', 0))}")
+    st.write(f"**Blocks:** {int(p_data.get('Defensive Blocks', 0))}")
 
 with col4:
-    st.markdown("### 🛡️ Defensive & Conceded")
-    st.write(
-        f"**Goals Conceded:** {int(team_data.get('GoalsConceded Total', 1))}"
-    )
-    st.write(f"**Defensive Blocks:** {int(team_data.get('Defensive Blocks', 10))}")
-    st.write(
-        f"**Interceptions:** {int(team_data.get('BallWon InterceptionWon', 0))}"
-    )
+    st.markdown("### ⚠️ Discipline & Cards")
+    st.write(f"**Fouls Committed:** {int(p_data.get('Fouls Committed', 0))}")
+    st.write(f"**Yellow Cards:** {int(p_data.get('Cards Yellow', 0))}")
+    st.write(f"**Red Cards:** {int(p_data.get('Cards Red', 0))}")
