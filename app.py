@@ -1,16 +1,24 @@
+import os
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import streamlit as st
 from mplsoccer import Pitch
 
-# 1. إعداد الملعب المظلم
+# 1. إعدادات الصفحة
+st.set_page_config(page_title="Cedric Ngah Analytics", layout="wide")
+
+st.title("⚽ CEDRIC NGAH (Al Mosul SC) - Passing Map")
+
+np.random.seed(88)
+
+# 2. إعداد الملعب المظلم
 pitch = Pitch(half=False, pitch_color="#000000", line_color="#ffffff")
 fig, ax = pitch.draw(figsize=(13, 8.5))
 fig.patch.set_facecolor("#000000")
 
-np.random.seed(88)
-
 # ---------------------------------------------------------
-# 2. إحداثيات التمريرات (88 ناجحة + 24 خاطئة)
+# 3. إحداثيات التمريرات (88 ناجحة + 24 خاطئة)
 # ---------------------------------------------------------
 num_completed = 88
 num_incomp = 24
@@ -25,7 +33,7 @@ pass_comp_y2 = np.clip(
     pass_comp_y1 + np.random.uniform(-22, 22, num_completed), 5, 75
 )
 
-# رسم الـ 88 سهمًا بسمك نحيف جداً (width=0.8) وشفافية (alpha=0.35) لإظهار التداخل والكثافة
+# رسم الـ 88 سهمًا بسمك نحيف (width=0.8) وشفافية (alpha=0.35) لإظهار التداخل والكثافة
 pitch.arrows(
     pass_comp_x1,
     pass_comp_y1,
@@ -67,7 +75,7 @@ pitch.arrows(
 )
 
 # ---------------------------------------------------------
-# 3. باقي الأفعال الدفاعية (استعادة الكرة، التشتيت، الأخطاء)
+# 4. الأفعال الدفاعية (استعادة الكرة، التشتيت، الأخطاء)
 # ---------------------------------------------------------
 
 # Ball Recovery (42)
@@ -130,7 +138,7 @@ pitch.scatter(
 )
 
 # ---------------------------------------------------------
-# 4. الشارات والـ Legend
+# 5. الشارات والـ Legend والعرض في Streamlit
 # ---------------------------------------------------------
 ax.text(
     60,
@@ -155,5 +163,5 @@ ax.legend(
     framealpha=0.85,
 )
 
-plt.tight_layout()
-plt.show()
+# التغيير الجوهري لمنع الشاشة السوداء: استخدام st.pyplot بدلاً من plt.show
+st.pyplot(fig)
