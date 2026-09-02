@@ -55,6 +55,7 @@ st.sidebar.header("🗺️ Tactical Pitch Views")
 tactical_view = st.sidebar.radio(
     "Select Tactical Visual Mode:",
     [
+        "🚀 Final Third Entries Map (طرق دخول الثلث الأخير)",
         "📥 Penalty Area Entries Map (طرق دخول منطقة الجزاء)",
         "🔑 Key Passes & Assists Map (التمريرات المفتاحية والحاسمة)",
         "✨ Offensive Dribbles Map (المراوغات الهجومية - 37)",
@@ -91,6 +92,9 @@ ax.axhline(30, color="#444444", linestyle="--", linewidth=1.2, zorder=2)
 ax.axhline(50, color="#444444", linestyle="--", linewidth=1.2, zorder=2)
 ax.axhline(62, color="#444444", linestyle="--", linewidth=1.2, zorder=2)
 
+# Demarcate Final Third Boundary (X = 80)
+ax.axvline(80, color="#ffea00", linestyle=":", linewidth=1.5, zorder=2)
+
 # Header Title Badge
 ax.text(
     60,
@@ -114,8 +118,102 @@ ax.text(
 # 4. Tactical Views Logic
 # ---------------------------------------------------------
 
-# MODE 1: PENALTY AREA ENTRIES MAP (طرق دخول منطقة الجزاء)
-if (
+# MODE 1: FINAL THIRD ENTRIES MAP (طرق دخول الثلث الأخير)
+if tactical_view == "🚀 Final Third Entries Map (طرق دخول الثلث الأخير)":
+    long_pass_succ = int(team_data.get("LongPass Success", 76))
+    pass_succ = int(team_data.get("Pass Success", 1251))
+    dribble_succ = int(team_data.get("Dribble Success", 16))
+    open_crosses = int(team_data.get("OpenPlayCross Total", 20))
+
+    short_entries_count = int(pass_succ * 0.08)  # حوالي 100 تمريرة قصيرة متدرجة
+
+    # 1. تمريرات قصيرة متدرجة تعبر خط منتصف الملعب إلى الثلث الأخير (White)
+    if short_entries_count > 0:
+        sp_x1 = np.random.uniform(45, 78, short_entries_count)
+        sp_y1 = np.random.uniform(8, 72, short_entries_count)
+        sp_x2 = np.random.uniform(81, 102, short_entries_count)
+        sp_y2 = np.random.uniform(10, 70, short_entries_count)
+        pitch.arrows(
+            sp_x1,
+            sp_y1,
+            sp_x2,
+            sp_y2,
+            color="#ffffff",
+            width=1.2,
+            headwidth=3.0,
+            headlength=3.0,
+            alpha=0.4,
+            ax=ax,
+            label=f"Short Build-up Entries ({short_entries_count})",
+            zorder=3,
+        )
+
+    # 2. تمريرات طويلة مباشرة تخترق الثلث الأخير (76 Long Passes - Purple)
+    if long_pass_succ > 0:
+        lp_x1 = np.random.uniform(15, 60, long_pass_succ)
+        lp_y1 = np.random.uniform(10, 70, long_pass_succ)
+        lp_x2 = np.random.uniform(82, 112, long_pass_succ)
+        lp_y2 = np.random.uniform(8, 72, long_pass_succ)
+        pitch.arrows(
+            lp_x1,
+            lp_y1,
+            lp_x2,
+            lp_y2,
+            color="#d500f9",
+            width=1.8,
+            headwidth=3.5,
+            headlength=3.5,
+            alpha=0.75,
+            ax=ax,
+            label=f"Direct Long Pass Entries ({long_pass_succ})",
+            zorder=4,
+        )
+
+    # 3. اختراق بالمراوغة والتقدم بالكرة نحو الثلث الأخير (16 Dribbles - Gold)
+    if dribble_succ > 0:
+        dr_x1 = np.random.uniform(55, 78, dribble_succ)
+        dr_y1 = np.random.uniform(10, 70, dribble_succ)
+        dr_x2 = np.clip(dr_x1 + np.random.uniform(12, 22, dribble_succ), 81, 108)
+        dr_y2 = np.clip(dr_y1 + np.random.uniform(-8, 8, dribble_succ), 5, 75)
+        pitch.arrows(
+            dr_x1,
+            dr_y1,
+            dr_x2,
+            dr_y2,
+            color="#ffd700",
+            width=2.2,
+            headwidth=4.0,
+            headlength=4.0,
+            ax=ax,
+            label=f"Dribble Carries into Final 1/3 ({dribble_succ})",
+            zorder=5,
+        )
+
+    # 4. عرضيات ومحاولات الأطراف في الثلث الأخير (20 Cross Attempts - Green)
+    if open_crosses > 0:
+        cr_x1 = np.random.uniform(80, 102, open_crosses)
+        cr_y1 = np.random.choice(
+            [np.random.uniform(5, 18), np.random.uniform(62, 75)], open_crosses
+        )
+        cr_x2 = np.random.uniform(94, 114, open_crosses)
+        cr_y2 = np.random.uniform(22, 58, open_crosses)
+        pitch.arrows(
+            cr_x1,
+            cr_y1,
+            cr_x2,
+            cr_y2,
+            color="#00ff66",
+            width=1.8,
+            headwidth=3.5,
+            headlength=3.5,
+            alpha=0.8,
+            ax=ax,
+            label=f"Flank Cross Entries ({open_crosses})",
+            zorder=5,
+        )
+
+# MODE 2: PENALTY AREA ENTRIES MAP
+elif (
     tactical_view
     == "📥 Penalty Area Entries Map (طرق دخول منطقة الجزاء)"
 ):
@@ -125,7 +223,6 @@ if (
     )
     dribble_succ = int(team_data.get("Dribble Success", 16))
 
-    # 1. التمريرات المفتاحية عبر العمق ونصف المساحات (25 تمريرة)
     if key_passes > 0:
         kp_x1 = np.random.uniform(65, 92, key_passes)
         kp_y1 = np.random.uniform(20, 60, key_passes)
@@ -145,7 +242,6 @@ if (
             zorder=5,
         )
 
-    # 2. العرضيات الناجحة داخل الصندوق (10 عرضيات)
     if cross_succ > 0:
         cr_x1 = np.random.uniform(75, 105, cross_succ)
         cr_y1 = np.random.choice(
@@ -167,7 +263,6 @@ if (
             zorder=5,
         )
 
-    # 3. الاختراق بالكرة والمراوغات الهجومية (16 مراوغة ناجحة)
     if dribble_succ > 0:
         dr_x1 = np.random.uniform(70, 95, dribble_succ)
         dr_y1 = np.random.uniform(15, 65, dribble_succ)
@@ -187,7 +282,7 @@ if (
             zorder=5,
         )
 
-# MODE 2: KEY PASSES & ASSISTS MAP
+# MODE 3: KEY PASSES & ASSISTS MAP
 elif (
     tactical_view
     == "🔑 Key Passes & Assists Map (التمريرات المفتاحية والحاسمة)"
@@ -250,7 +345,7 @@ elif (
             zorder=5,
         )
 
-# MODE 3: OFFENSIVE DRIBBLES MAP
+# MODE 4: OFFENSIVE DRIBBLES MAP
 elif tactical_view == "✨ Offensive Dribbles Map (المراوغات الهجومية - 37)":
     dribble_tot = int(team_data.get("Dribble Total", 37))
     dribble_succ = int(team_data.get("Dribble Success", 16))
@@ -305,7 +400,7 @@ elif tactical_view == "✨ Offensive Dribbles Map (المراوغات الهجو
             zorder=4,
         )
 
-# MODE 4: AERIAL DUELS MAP
+# MODE 5: AERIAL DUELS MAP
 elif tactical_view == "⚔️ Aerial Duels Map (الالتحامات الهوائية)":
     aerial_won = int(team_data.get("BallWon Aerial", 41))
     aerial_lost = int(team_data.get("BallLost Aerial", 49))
@@ -339,7 +434,7 @@ elif tactical_view == "⚔️ Aerial Duels Map (الالتحامات الهوا�
             zorder=4,
         )
 
-# MODE 5: GROUND DUELS MAP
+# MODE 6: GROUND DUELS MAP
 elif tactical_view == "🤼 Ground Duels Map (الالتحامات الأرضية)":
     tackles_won = int(team_data.get("BallWon TackleWon", 24))
     dribbles_won = int(team_data.get("Dribble Success", 16))
@@ -390,7 +485,7 @@ elif tactical_view == "🤼 Ground Duels Map (الالتحامات الأرضي�
             zorder=4,
         )
 
-# MODE 6: TEAM SHOTS MAP
+# MODE 7: TEAM SHOTS MAP
 elif tactical_view == "⚽ Team Shots Map (تسديدات الفريق الهجومية - 42)":
     shots_tot = int(team_data.get("Attempts Total", 42))
     shots_succ = int(team_data.get("Attempts Success", 22))
@@ -457,7 +552,7 @@ elif tactical_view == "⚽ Team Shots Map (تسديدات الفريق الهج�
             zorder=4,
         )
 
-# MODE 7: OPPONENT SHOTS CONCEDED
+# MODE 8: OPPONENT SHOTS CONCEDED
 elif (
     tactical_view
     == "🛡️ Opponent Shots Conceded (التسديدات المستقبلة من المنافسين)"
@@ -509,7 +604,7 @@ elif (
             zorder=4,
         )
 
-# MODE 8: ALL PASSES MAP
+# MODE 9: ALL PASSES MAP
 elif tactical_view == "🎯 All Passes Map (ALL 1545 Passes)":
     pass_tot = int(team_data.get("Pass Total", 1545))
     pass_succ = int(team_data.get("Pass Success", 1251))
@@ -555,7 +650,7 @@ elif tactical_view == "🎯 All Passes Map (ALL 1545 Passes)":
             zorder=4,
         )
 
-# MODE 9: SHORT PASSES MAP
+# MODE 10: SHORT PASSES MAP
 elif tactical_view == "📐 Short Passes Map (ALL 1322 Short Passes)":
     sp_tot = int(team_data.get("ShortPass Total", 1322))
     sp_succ = int(team_data.get("ShortPass Success", 1165))
@@ -601,7 +696,7 @@ elif tactical_view == "📐 Short Passes Map (ALL 1322 Short Passes)":
             zorder=4,
         )
 
-# MODE 10: LONG PASSES MAP
+# MODE 11: LONG PASSES MAP
 elif tactical_view == "📏 Long Passes Map (ALL 189 Long Passes)":
     lp_tot = int(team_data.get("LongPass Total", 189))
     lp_succ = int(team_data.get("LongPass Success", 76))
@@ -663,7 +758,7 @@ elif tactical_view == "📏 Long Passes Map (ALL 189 Long Passes)":
             zorder=3,
         )
 
-# MODE 11: SET-PIECE & CORNER CROSSES
+# MODE 12: SET-PIECE & CORNER CROSSES
 elif (
     tactical_view
     == "🚩 Set-Piece & Corner Crosses (الركنيات والضربات الثابتة)"
@@ -711,7 +806,7 @@ elif (
             zorder=4,
         )
 
-# MODE 12: ALL CROSSES COMBINED
+# MODE 13: ALL CROSSES COMBINED
 elif (
     tactical_view
     == "🌐 ALL Crosses Combined (كافة العرضيات مجتمعة)"
@@ -789,7 +884,7 @@ elif (
             zorder=4,
         )
 
-# MODE 13: OPEN PLAY CROSSES
+# MODE 14: OPEN PLAY CROSSES
 elif tactical_view == "↗️ Open Play Crosses (عرضيات اللعب المفتوح)":
     op_succ = int(team_data.get("OpenPlayCross Success", 4))
     op_tot = int(team_data.get("OpenPlayCross Total", 20))
@@ -830,7 +925,7 @@ elif tactical_view == "↗️ Open Play Crosses (عرضيات اللعب الم�
             zorder=4,
         )
 
-# MODE 14: PASSES INTO HALF-SPACES
+# MODE 15: PASSES INTO HALF-SPACES
 elif tactical_view == "📥 ALL Passes INTO Half-Spaces":
     pass_succ = int(team_data.get("Pass Success", 1251))
     total_into_hs = int(pass_succ * 0.15)
@@ -862,7 +957,7 @@ elif tactical_view == "📥 ALL Passes INTO Half-Spaces":
         zorder=4,
     )
 
-# MODE 15: PASSES OUT OF HALF-SPACES
+# MODE 16: PASSES OUT OF HALF-SPACES
 elif tactical_view == "📤 ALL Passes OUT OF Half-Spaces":
     pass_succ = int(team_data.get("Pass Success", 1251))
     total_out_hs = int(pass_succ * 0.15)
@@ -894,7 +989,7 @@ elif tactical_view == "📤 ALL Passes OUT OF Half-Spaces":
         zorder=4,
     )
 
-# MODE 16: BALL RECOVERY ZONES
+# MODE 17: BALL RECOVERY ZONES
 elif (
     tactical_view
     == "🛡️ Ball Recovery Zones (254 Recoveries + 51 Interceptions)"
@@ -943,7 +1038,7 @@ elif (
             zorder=5,
         )
 
-# MODE 17: TEAM RECOVERY HEATMAP
+# MODE 18: TEAM RECOVERY HEATMAP
 elif tactical_view == "🔥 Team Recovery Heatmap (Density Only)":
     rec = int(team_data.get("BallWon BallRecover", 254))
     sns.kdeplot(
@@ -958,7 +1053,7 @@ elif tactical_view == "🔥 Team Recovery Heatmap (Density Only)":
         zorder=2,
     )
 
-# MODE 18: TEAM PRESSING MAP
+# MODE 19: TEAM PRESSING MAP
 elif tactical_view == "⚡ Team Pressing Map":
     px = np.clip(np.random.normal(65, 18, 120), 5, 115)
     py = np.clip(np.random.normal(40, 16, 120), 5, 75)
@@ -1003,15 +1098,15 @@ st.subheader(f"📋 {team_name} Quantitative Metrics Summary")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.markdown("### 📥 Penalty Box Penetration")
+    st.markdown("### 🚀 Final Third & Penetration")
     st.write(
-        f"**Key Passes to Box:** {int(team_data.get('Chances KeyPasses', 25))}"
+        f"**Direct Long Pass Entries:** {int(team_data.get('LongPass Success', 76))}"
     )
     st.write(
-        f"**Completed Crosses:** {int(team_data.get('OpenPlayCross Success', 4)) + int(team_data.get('SetPieceCross Success', 6))}"
+        f"**Key Passes:** {int(team_data.get('Chances KeyPasses', 25))}"
     )
     st.write(
-        f"**Dribble Carries Won:** {int(team_data.get('Dribble Success', 16))}"
+        f"**Successful Dribbles:** {int(team_data.get('Dribble Success', 16))}"
     )
 
 with col2:
