@@ -7,23 +7,23 @@ from mplsoccer import Pitch
 
 # 1. إعدادات الصفحة
 st.set_page_config(
-    page_title="TootScouting - Universal Player Dashboard", layout="wide"
+    page_title="Universal Player Analytics Dashboard", layout="wide"
 )
 
-st.title("⚽ Universal Player Tactical & Spatial Analytics")
+st.title("⚽ Dynamic Player Tactical Analytics Dashboard")
 
 # ---------------------------------------------------------
-# 2. قراءة بيانات جميع اللاعبين ديناميكياً
+# 2. محرك تحميل وقراءة بيانات جميع الأندية واللاعبين
 # ---------------------------------------------------------
 @st.cache_data
-def load_all_players():
+def load_all_players_data():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(base_dir, "PlayersData_2215.csv")
 
     if os.path.exists(file_path):
         return pd.read_csv(file_path)
     else:
-        # بيانات نمطية مؤمنة كبديل في حال عدم رفع الملف
+        # بيانات احتياطية شاملة لتجنيب التطبيق السقوط في حال عدم توفر الملف
         return pd.DataFrame([
             {
                 "Team Name": "Al Mosul SC",
@@ -65,34 +65,54 @@ def load_all_players():
                 "Recoveries": 12,
                 "Key Passes": 4,
             },
+            {
+                "Team Name": "Al-Zawraa SC",
+                "Player Name": "Maicol Cabrera",
+                "Position": "ST",
+                "Shirt Number": 11,
+                "Pass Success": 22,
+                "Pass Fail": 9,
+                "Recoveries": 4,
+                "Key Passes": 2,
+            },
+            {
+                "Team Name": "Zakho SC",
+                "Player Name": "Amjad Attwan",
+                "Position": "DM",
+                "Shirt Number": 8,
+                "Pass Success": 65,
+                "Pass Fail": 10,
+                "Recoveries": 18,
+                "Key Passes": 2,
+            },
         ])
 
-df_players = load_all_players()
+df_players = load_all_players_data()
 
 # ---------------------------------------------------------
-# 3. الـ Sidebar - اختيار أي نادي وأي لاعب ديناميكياً
+# 3. قائمة اختيار الأندية واللاعبين في الـ Sidebar
 # ---------------------------------------------------------
-st.sidebar.header("📁 Data & Filter Controls")
+st.sidebar.header("📁 Data & Player Selector")
 
-# اختيار النادي
+# أ) اختيار النادي من القائمة
 if "Team Name" in df_players.columns:
     teams_list = sorted(df_players["Team Name"].dropna().unique().tolist())
-    selected_team = st.sidebar.selectbox("🏟️ Select Team (اختر النادي):", teams_list)
+    selected_team = st.sidebar.selectbox("🏟️ Choose Team (اختر النادي):", teams_list)
     filtered_team_df = df_players[df_players["Team Name"] == selected_team]
 else:
     filtered_team_df = df_players
     selected_team = "Selected Team"
 
-# اختيار اللاعب
+# ب) اختيار اللاعب بناءً على النادي المحدد
 if "Player Name" in filtered_team_df.columns:
     players_list = sorted(filtered_team_df["Player Name"].dropna().unique().tolist())
-    selected_player = st.sidebar.selectbox("👤 Select Player (اختر اللاعب):", players_list)
+    selected_player = st.sidebar.selectbox("👤 Choose Player (اختر اللاعب):", players_list)
     player_data = filtered_team_df[filtered_team_df["Player Name"] == selected_player].iloc[0]
 else:
     player_data = filtered_team_df.iloc[0]
-    selected_player = "Selected Player"
+    selected_player = "Player"
 
-# استخراج خصائص اللاعب المحدد ديناميكياً
+# ج) استخراج البيانات الرقمية الحقيقية للاعب
 player_pos = str(player_data.get("Position", "CM"))
 player_num = int(player_data.get("Shirt Number", player_data.get("Number", 10)))
 num_completed = int(player_data.get("Pass Success", player_data.get("Completed Passes", 30)))
@@ -100,8 +120,9 @@ num_incomp = int(player_data.get("Pass Fail", player_data.get("Incomplete Passes
 num_recoveries = int(player_data.get("Recoveries", player_data.get("Ball Recoveries", 6)))
 num_key_passes = int(player_data.get("Key Passes", 1))
 
+# د) عرض ملخص عن اللاعب المختار في الـ Sidebar
 st.sidebar.markdown("---")
-st.sidebar.subheader("📌 Selected Profile Info")
+st.sidebar.subheader("📌 Selected Player Summary")
 st.sidebar.write(f"**Name:** {selected_player}")
 st.sidebar.write(f"**Team:** {selected_team}")
 st.sidebar.write(f"**Position:** {player_pos} | **Number:** #{player_num}")
@@ -109,7 +130,7 @@ st.sidebar.write(f"**Completed Passes:** {num_completed}")
 st.sidebar.write(f"**Incomplete Passes:** {num_incomp}")
 
 # ---------------------------------------------------------
-# 4. محرك الرسم التكتيكي الديناميكي لكل لاعب
+# 4. رسم الملعب والخريطة التكتيكية الديناميكية
 # ---------------------------------------------------------
 np.random.seed(player_num)
 
@@ -117,15 +138,15 @@ pitch = Pitch(half=False, pitch_color="#000000", line_color="#ffffff")
 fig, ax = pitch.draw(figsize=(13, 8.5))
 fig.patch.set_facecolor("#000000")
 
-# تحديد النطاق المكاني الافتراضي للتمرير حسب مركز اللاعب (CB / CM / LW / ST)
-if "CB" in player_pos or "RB" in player_pos or "LB" in player_pos:
-    base_x, spread_x = 32, 12
-    base_y, spread_y = 40, 20
-elif "CM" in player_pos or "DM" in player_pos or "AM" in player_pos:
-    base_x, spread_x = 58, 16
+# تحديد مركز التواجد التكتيكي الافتراضي حسب مركز اللاعب
+if any(pos in player_pos for pos in ["CB", "RB", "LB", "GK"]):
+    base_x, spread_x = 32, 10
     base_y, spread_y = 40, 18
-else:  # LW / RW / ST
-    base_x, spread_x = 82, 14
+elif any(pos in player_pos for pos in ["CM", "DM", "AM"]):
+    base_x, spread_x = 58, 15
+    base_y, spread_y = 40, 18
+else:  # LW, RW, ST
+    base_x, spread_x = 82, 12
     base_y, spread_y = 35, 22
 
 # أ) رسم التمريرات الناجحة (Completed Passes)
@@ -135,9 +156,9 @@ if num_completed > 0:
     pass_comp_x2 = np.clip(pass_comp_x1 + np.random.uniform(-5, 30, num_completed), 10, 115)
     pass_comp_y2 = np.clip(pass_comp_y1 + np.random.uniform(-20, 20, num_completed), 5, 75)
 
-    # لضبط التداخل عند كثرة التمريرات: تقليل السمك والشفافية مع الأعداد الكبيرة
-    arrow_width = 0.8 if num_completed > 50 else 1.4
-    arrow_alpha = 0.35 if num_completed > 50 else 0.65
+    # ضبط سمك الأسهم وشفافيتها ديناميكياً لتجنب التكتل عند كثرة التمريرات
+    arrow_width = 0.8 if num_completed > 50 else 1.2
+    arrow_alpha = 0.35 if num_completed > 50 else 0.60
 
     pitch.arrows(
         pass_comp_x1, pass_comp_y1, pass_comp_x2, pass_comp_y2,
@@ -155,12 +176,12 @@ if num_incomp > 0:
     pitch.arrows(
         pass_inc_x1, pass_inc_y1, pass_inc_x2, pass_inc_y2,
         color="#ff3333", width=0.9, headwidth=2.5, headlength=2.5,
-        alpha=0.6, ax=ax, label=f"Incomplete Pass ({num_incomp})", zorder=4
+        alpha=0.65, ax=ax, label=f"Incomplete Pass ({num_incomp})", zorder=4
     )
 
 # ج) استعادة الكرة (Ball Recoveries)
 if num_recoveries > 0:
-    rec_x = np.clip(np.random.normal(base_x - 10, spread_x, num_recoveries), 8, 95)
+    rec_x = np.clip(np.random.normal(base_x - 8, spread_x, num_recoveries), 8, 95)
     rec_y = np.clip(np.random.normal(base_y, spread_y, num_recoveries), 5, 75)
     pitch.scatter(
         rec_x, rec_y, s=80, color="#00e5ff", marker="s", edgecolors="white",
@@ -177,7 +198,7 @@ if num_key_passes > 0:
     )
 
 # ---------------------------------------------------------
-# 5. الشارات والـ Legend والعرض المباشر
+# 5. الشارات والـ Legend وإخراج الرسم في Streamlit
 # ---------------------------------------------------------
 ax.text(
     60, 92, f"{selected_player} ({selected_team}) - {player_pos}",
@@ -190,5 +211,5 @@ ax.legend(
     loc="upper left", framealpha=0.85
 )
 
-# عرض الرسم المباشر في Streamlit بدلاً من plt.show()
+# عرض الشكل فوراً ومنع الشاشة السوداء
 st.pyplot(fig)
