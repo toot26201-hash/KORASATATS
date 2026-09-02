@@ -120,27 +120,27 @@ ax.text(
 # 4. Tactical Views Logic
 # ---------------------------------------------------------
 
-# MODE 1: AVERAGE PLAYER POSITIONS MAP (متوسط تمركز أفراد الفريق)
+# MODE 1: AVERAGE PLAYER POSITIONS MAP (متوسط تمركز أفراد الفريق مع الأسماء)
 if (
     tactical_view
     == "📍 Average Player Positions Map (متوسط تمركز أفراد الفريق)"
 ):
-    # تعريف التشكيلة المتوسطة للبدء الرسمية (4-3-3 / 4-2-3-1)
+    # قائمة اللاعبين بالأسماء والمراكز وأرقام القمصان وإحداثيات التمركز المتوسطة
     players = [
-        {"num": 1, "pos": "GK", "x": 10, "y": 40, "name": "GK"},
-        {"num": 2, "pos": "RB", "x": 38, "y": 70, "name": "RB"},
-        {"num": 4, "pos": "CB", "x": 32, "y": 52, "name": "RCB"},
-        {"num": 5, "pos": "CB", "x": 32, "y": 28, "name": "LCB"},
-        {"num": 3, "pos": "LB", "x": 38, "y": 10, "name": "LB"},
-        {"num": 6, "pos": "DM", "x": 48, "y": 40, "name": "DM"},
-        {"num": 8, "pos": "CM", "x": 62, "y": 56, "name": "RCM"},
-        {"num": 10, "pos": "AM", "x": 65, "y": 24, "name": "LCM"},
-        {"num": 7, "pos": "RW", "x": 78, "y": 68, "name": "RW"},
-        {"num": 9, "pos": "ST", "x": 88, "y": 40, "name": "ST"},
-        {"num": 11, "pos": "LW", "x": 78, "y": 12, "name": "LW"},
+        {"num": 1, "pos": "GK", "x": 10, "y": 40, "name": "Jalal Hassan"},
+        {"num": 2, "pos": "RB", "x": 38, "y": 70, "name": "Mustafa Saadoon"},
+        {"num": 4, "pos": "CB", "x": 32, "y": 52, "name": "Mithaq Abbas"},
+        {"num": 5, "pos": "CB", "x": 32, "y": 28, "name": "Hassan Abdulkareem"},
+        {"num": 3, "pos": "LB", "x": 38, "y": 10, "name": "Kadhem Mustafa"},
+        {"num": 6, "pos": "DM", "x": 48, "y": 40, "name": "Sadney Urikhob"},
+        {"num": 8, "pos": "CM", "x": 62, "y": 56, "name": "Moamel Abdulridha"},
+        {"num": 10, "pos": "AM", "x": 65, "y": 24, "name": "Hasan Sayyid"},
+        {"num": 7, "pos": "RW", "x": 78, "y": 68, "name": "Ibrahim Saadeh"},
+        {"num": 9, "pos": "ST", "x": 88, "y": 40, "name": "Alaa Abbas"},
+        {"num": 11, "pos": "LW", "x": 78, "y": 12, "name": "Ali Yousif"},
     ]
 
-    # 1. رسم خطوط الشبكة التمريرية التكتيكية بين اللاعبين (Passing Links)
+    # 1. رسم شبكة خطوط التمرير التكتيكية بين اللاعبين (Passing Links)
     links = [
         (4, 5), (4, 2), (5, 3), (4, 6), (5, 6),
         (6, 8), (6, 10), (8, 7), (10, 11), (8, 9), (10, 9), (7, 9), (11, 9)
@@ -159,20 +159,20 @@ if (
             zorder=3,
         )
 
-    # 2. رسم عقد دوائر تمركز اللاعبين ورقم القميص
+    # 2. رسم عقد دوائر تمركز اللاعبين ورقم القميص والاسم الكامل
     for p in players:
-        # نطاق الانتشار حول المركز المتوسط (Scatter Density Zone)
-        px_var = np.random.normal(p["x"], 3.5, 12)
-        py_var = np.random.normal(p["y"], 3.5, 12)
+        # نطاق انتشار حركة اللاعب حول مركزه المتوسط
+        px_var = np.random.normal(p["x"], 3.2, 10)
+        py_var = np.random.normal(p["y"], 3.2, 10)
         pitch.scatter(
-            px_var, py_var, s=30, color="#ffd700", alpha=0.3, ax=ax, zorder=4
+            px_var, py_var, s=28, color="#ffd700", alpha=0.35, ax=ax, zorder=4
         )
 
-        # الدائرة الرئيسية لمتوسط التمركز
+        # الدائرة الرئيسية لمركز اللاعب
         pitch.scatter(
             p["x"],
             p["y"],
-            s=450,
+            s=500,
             color="#00ff66",
             edgecolors="#ffffff",
             linewidth=2,
@@ -180,35 +180,35 @@ if (
             zorder=6,
         )
 
-        # كتابة رقم القميص داخل الدائرة
+        # رقم قميص اللاعب داخل الدائرة
         ax.text(
             p["x"],
             p["y"],
             str(p["num"]),
             color="#000000",
-            fontsize=11,
+            fontsize=12,
             ha="center",
             va="center",
             fontweight="bold",
             zorder=7,
         )
 
-        # بطاقة تعريف اللاعب والمركز
+        # بطاقة الاسم والمركز تحت الدائرة مباشرة
         ax.text(
             p["x"],
-            p["y"] - 4.5,
-            f"{p['name']}",
+            p["y"] - 4.8,
+            f"{p['name']} ({p['pos']})",
             color="#ffffff",
-            fontsize=9,
+            fontsize=9.5,
             ha="center",
             va="center",
             fontweight="bold",
             zorder=7,
             bbox=dict(
-                boxstyle="round,pad=0.2",
-                facecolor="#1e1e1e",
+                boxstyle="round,pad=0.25",
+                facecolor="#111111",
                 edgecolor="#00ff66",
-                alpha=0.8,
+                alpha=0.9,
             ),
         )
 
