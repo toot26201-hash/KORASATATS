@@ -120,14 +120,14 @@ ax.text(
 # 4. Tactical Views Logic
 # ---------------------------------------------------------
 
-# MODE 1: AVERAGE PLAYER POSITIONS MAP (متوسط تمركز أفراد الفريق - أسماء لاعبي الزوراء الحقيقية)
+# MODE 1: AVERAGE PLAYER POSITIONS MAP (متوسط تمركز أفراد الفريق)
 if (
     tactical_view
     == "📍 Average Player Positions Map (متوسط تمركز أفراد الفريق)"
 ):
-    # قائمة لاعبي الزوراء الحقيقيين مع الأرقام والأسماء والمواقع التكتيكية
+    # قائمة لاعبي الزوراء الحقيقيين والمواقع التكتيكية مع القمجة الصحيحة
     players = [
-        {"num": 12, "pos": "GK", "x": 10, "y": 40, "name": "Jalal Hassan"},
+        {"num": 1, "pos": "GK", "x": 10, "y": 40, "name": "Jalal Hassan"},
         {"num": 2, "pos": "RB", "x": 38, "y": 70, "name": "Mustafa Saadoon"},
         {"num": 4, "pos": "CB", "x": 32, "y": 52, "name": "Mithaq Abbas"},
         {"num": 15, "pos": "CB", "x": 32, "y": 28, "name": "Hassan Srour"},
@@ -135,7 +135,7 @@ if (
         {"num": 6, "pos": "DM", "x": 48, "y": 40, "name": "Sajjad Jassim"},
         {"num": 8, "pos": "CM", "x": 62, "y": 56, "name": "Ali Mohsin"},
         {"num": 10, "pos": "AM", "x": 65, "y": 24, "name": "Hasan Abdulkareem"},
-        {"num": 7, "pos": "RW", "x": 78, "y": 68, "name": "Ibrahim Saadeh"},
+        {"num": 7, "pos": "RW", "x": 78, "y": 68, "name": "Hiran Ahmed"},
         {"num": 9, "pos": "ST", "x": 88, "y": 40, "name": "Alaa Abbas"},
         {"num": 11, "pos": "LW", "x": 78, "y": 12, "name": "Maicol Cabrera"},
     ]
